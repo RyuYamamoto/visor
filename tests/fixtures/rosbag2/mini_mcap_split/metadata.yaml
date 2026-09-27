@@ -1,0 +1,61 @@
+rosbag2_bagfile_information:
+  version: 9
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 5900000001
+  starting_time:
+    nanoseconds_since_epoch: 1700000000000000000
+  message_count: 151
+  topics_with_message_count:
+    - topic_metadata:
+        name: /scan
+        type: sensor_msgs/msg/LaserScan
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 30
+    - topic_metadata:
+        name: /tf_static
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 1
+    - topic_metadata:
+        name: /tf
+        type: tf2_msgs/msg/TFMessage
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 60
+    - topic_metadata:
+        name: /chatter
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 60
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - mini_mcap_split_0.mcap
+    - mini_mcap_split_1.mcap
+  files:
+    - path: mini_mcap_split_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1700000000000000000
+      duration:
+        nanoseconds: 5100000000
+      message_count: 260
+    - path: mini_mcap_split_1.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1700000005100000001
+      duration:
+        nanoseconds: 800000000
+      message_count: 42
+  custom_data: ~
+  ros_distro: jazzy

@@ -1,0 +1,11 @@
+# Keep LF in the working tree everywhere (Windows Git defaults to CRLF, and build.rs embeds .msg / .wgsl / .toml verbatim).
+* text=auto eol=lf
+
+*.bin binary
+*.stl binary
+*.png binary
+*.ttf binary
+*.ico binary
+*.mcap binary
+*.db3 binary
+*.zst binary

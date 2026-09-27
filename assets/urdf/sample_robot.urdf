@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!-- Primitive-only sample for the RobotModel display; feed it to robot_state_publisher to exercise the /tf path. -->
+<robot name="visor_sample">
+
+  <material name="visor_cyan">
+    <color rgba="0.0 0.9 1.0 1.0"/>
+  </material>
+
+  <link name="base_link">
+    <visual name="body">
+      <geometry>
+        <box size="0.4 0.3 0.1"/>
+      </geometry>
+      <material name="visor_body">
+        <color rgba="0.62 0.70 0.78 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="laser_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.04" length="0.06"/>
+      </geometry>
+      <material name="visor_cyan"/>
+    </visual>
+  </link>
+
+  <link name="arm_link">
+    <visual>
+      <origin xyz="0.0 0.0 0.15" rpy="0.0 0.3 0.0"/>
+      <geometry>
+        <cylinder radius="0.03" length="0.30"/>
+      </geometry>
+      <material name="visor_purple">
+        <color rgba="0.70 0.53 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="hand_link">
+    <visual>
+      <geometry>
+        <sphere radius="0.05"/>
+      </geometry>
+      <material name="visor_cyan"/>
+    </visual>
+  </link>
+
+  <link name="bumper_link">
+    <collision>
+      <geometry>
+        <box size="0.05 0.3 0.08"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_laser" type="fixed">
+    <origin xyz="0.15 0.0 0.1" rpy="0.0 0.0 0.0"/>
+    <parent link="base_link"/>
+    <child link="laser_link"/>
+  </joint>
+
+  <joint name="base_to_arm" type="revolute">
+    <origin xyz="-0.1 0.0 0.05" rpy="0.0 0.0 0.0"/>
+    <parent link="base_link"/>
+    <child link="arm_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="10.0" velocity="1.0"/>
+  </joint>
+
+  <joint name="arm_to_hand" type="revolute">
+    <origin xyz="0.09 0.0 0.29" rpy="0.0 0.0 0.0"/>
+    <parent link="arm_link"/>
+    <child link="hand_link"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.57" upper="1.57" effort="10.0" velocity="1.0"/>
+  </joint>
+
+  <joint name="base_to_bumper" type="fixed">
+    <origin xyz="0.22 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="base_link"/>
+    <child link="bumper_link"/>
+  </joint>
+
+</robot>

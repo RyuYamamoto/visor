@@ -1,0 +1,181 @@
+version = 1
+fixed_frame = "map"
+fixed_frame_auto = true
+group_by = "type"
+
+[camera]
+view_type = "top_down_ortho"
+target = [
+    5.522089958190918,
+    -3.8686439990997314,
+    2.0359866619110107,
+]
+yaw = -0.731423020362854
+pitch = 1.0566859245300293
+distance = 22.184619903564453
+
+[camera.topdown]
+center = [
+    0.12393397837877274,
+    0.7686772346496582,
+]
+rotation = -1.5769795179367065
+half_height = 7.8662824630737305
+
+[camera.fps]
+eye = [
+    -5.0,
+    -5.0,
+    3.0,
+]
+yaw = 0.7853981852531433
+pitch = -0.3490658402442932
+
+[viewport]
+show_names = false
+show_links = true
+tf_axis_len = 0.20000000298023224
+tf_line_width = 0.014999999664723873
+hidden_frames = []
+
+[[displays]]
+topic = "/odom"
+ros_type = "nav_msgs/msg/Odometry"
+visible = true
+
+[displays.settings]
+angle_tolerance = 0.1
+arrow_len = 1.0
+color = "#FF0000FF"
+keep = 1
+position_tolerance = 0.1
+
+[[displays]]
+topic = "/scan_rear"
+ros_type = "sensor_msgs/msg/LaserScan"
+visible = true
+
+[displays.settings]
+color = "#FF0000FF"
+color_mode = "flat"
+
+[displays.settings.intensity]
+auto = true
+max = 1.0
+min = 0.0
+
+[displays.settings.style]
+size_m = 0.05000000074505806
+size_px = 3.0
+style = "points"
+
+[[displays]]
+topic = "/scan"
+ros_type = "sensor_msgs/msg/LaserScan"
+visible = true
+
+[displays.settings]
+color = "#FF0000FF"
+color_mode = "flat"
+
+[displays.settings.intensity]
+auto = true
+max = 1.0
+min = 0.0
+
+[displays.settings.style]
+size_m = 0.05000000074505806
+size_px = 3.0
+style = "points"
+
+[[displays]]
+topic = "/local_costmap/costmap"
+ros_type = "nav_msgs/msg/OccupancyGrid"
+visible = true
+
+[displays.settings]
+alpha = 0.699999988079071
+draw_behind = false
+scheme = "raw"
+
+[[displays]]
+topic = "/global_costmap/costmap"
+ros_type = "nav_msgs/msg/OccupancyGrid"
+visible = true
+
+[displays.settings]
+alpha = 0.699999988079071
+draw_behind = true
+scheme = "costmap"
+
+[[displays]]
+topic = "/plan"
+ros_type = "nav_msgs/msg/Path"
+visible = true
+
+[displays.settings]
+alpha = 1.0
+color = "#50FF00FF"
+marker_size = 0.30000001192092896
+pose_style = "none"
+
+[[displays]]
+topic = "/local_plan"
+ros_type = "nav_msgs/msg/Path"
+visible = true
+
+[displays.settings]
+alpha = 1.0
+color = "#00E5FFFF"
+marker_size = 0.30000001192092896
+pose_style = "none"
+
+[[displays]]
+topic = "/camera/image_raw/compressed"
+ros_type = "sensor_msgs/msg/CompressedImage"
+visible = true
+
+[displays.settings]
+depth_colormap = "grayscale"
+
+[displays.settings.depth_range]
+auto = true
+max = 1.0
+min = 0.0
+
+[[displays]]
+topic = "/robot_description"
+ros_type = "std_msgs/msg/String"
+visible = true
+
+[displays.settings]
+alpha = 1.0
+mesh_roots = []
+path = ""
+
+[dock]
+focused_surface = 0
+
+[[dock.surfaces]]
+
+[dock.surfaces.Main]
+collapsed = false
+collapsed_leaf_count = 0
+focused_node = 6
+nodes = [
+    { Horizontal = { collapsed_leaf_count = 0, fraction = 0.25, fully_collapsed = false, rect = { max = { x = 1280.0, y = 778.0 }, min = { x = 0.0, y = 22.0 } } } },
+    { Vertical = { collapsed_leaf_count = 0, fraction = 0.5, fully_collapsed = false, rect = { max = { x = 320.0, y = 778.0 }, min = { x = 0.0, y = 22.0 } } } },
+    { Horizontal = { collapsed_leaf_count = 0, fraction = 0.6338964700698853, fully_collapsed = false, rect = { max = { x = 1280.0, y = 778.0 }, min = { x = 321.0, y = 22.0 } } } },
+    { Leaf = { active = 0, collapsed = false, rect = { max = { x = 320.0, y = 400.0 }, min = { x = 0.0, y = 22.0 } }, scroll = 0.0, tabs = ["Displays"], viewport = { max = { x = 320.0, y = 400.0 }, min = { x = 0.0, y = 46.0 } } } },
+    { Leaf = { active = 0, collapsed = false, rect = { max = { x = 320.0, y = 778.0 }, min = { x = 0.0, y = 401.0 } }, scroll = 0.0, tabs = [{ Image = "/camera/image_raw/compressed" }], viewport = { max = { x = 320.0, y = 778.0 }, min = { x = 0.0, y = 425.0 } } } },
+    { Leaf = { active = 0, collapsed = false, rect = { max = { x = 928.0, y = 778.0 }, min = { x = 321.0, y = 22.0 } }, scroll = 0.0, tabs = ["View3d"], viewport = { max = { x = 928.0, y = 778.0 }, min = { x = 321.0, y = 46.0 } } } },
+    { Leaf = { active = 0, collapsed = false, rect = { max = { x = 1280.0, y = 778.0 }, min = { x = 929.0, y = 22.0 } }, scroll = 0.0, tabs = ["Frames"], viewport = { max = { x = 1280.0, y = 778.0 }, min = { x = 929.0, y = 46.0 } } } },
+    "Empty",
+    "Empty",
+    "Empty",
+    "Empty",
+    "Empty",
+    "Empty",
+    "Empty",
+    "Empty",
+]

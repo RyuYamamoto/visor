@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<!--
+  Windows installer definition for Visor (WiX Toolset v3), fed to candle / light by `cargo wix -p visor-app`
+  from the workspace root. Derived from the cargo-wix 0.3.9 template plus a product icon and a Start Menu
+  shortcut. UpgradeCode identifies the product across versions: never change it.
+
+  Preprocessor variables defined by cargo wix that this file uses:
+  CargoTargetBinDir = directory of the built executables (default target\release)
+  Version           = the [package] version from apps/visor/Cargo.toml
+-->
+
+<?if $(sys.BUILDARCH) = x64 or $(sys.BUILDARCH) = arm64 ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+
+    <Product
+        Id='*'
+        Name='Visor'
+        UpgradeCode='C2BB74ED-2048-47EC-B8AB-6C867C423841'
+        Manufacturer='Visor'
+        Language='1033'
+        Codepage='1252'
+        Version='$(var.Version)'>
+
+        <Package Id='*'
+            Keywords='Installer'
+            Description='An RViz alternative ROS 2 viewer (connects directly as a zenoh client)'
+            Manufacturer='Visor'
+            InstallerVersion='450'
+            Languages='1033'
+            Compressed='yes'
+            InstallScope='perMachine'
+            SummaryCodepage='1252'
+            />
+
+        <!-- AllowSameVersionUpgrades: a rebuilt .msi with the same version replaces the installed one instead of leaving the old exe in place (Windows Installer never overwrites a same-version file). Raises ICE61 as a warning only. -->
+        <MajorUpgrade
+            Schedule='afterInstallInitialize'
+            AllowSameVersionUpgrades='yes'
+            DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
+
+        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
+        <Property Id='DiskPrompt' Value='Visor Installation'/>
+
+        <Directory Id='TARGETDIR' Name='SourceDir'>
+            <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
+                <Directory Id='APPLICATIONFOLDER' Name='Visor'>
+                    <Directory Id='Bin' Name='bin'>
+                        <Component Id='Path' Guid='6C4823D8-AE1F-431F-84C3-EA92B9F25C57' KeyPath='yes'>
+                            <Environment
+                                Id='PATH'
+                                Name='PATH'
+                                Value='[Bin]'
+                                Permanent='no'
+                                Part='last'
+                                Action='set'
+                                System='yes'/>
+                        </Component>
+                        <Component Id='binary0' Guid='*'>
+                            <File
+                                Id='exe0'
+                                Name='visor.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\visor.exe'
+                                KeyPath='yes'/>
+                        </Component>
+                    </Directory>
+                </Directory>
+            </Directory>
+
+            <!-- Start Menu folder "Visor", laid out as in the WiX "How To: Create a shortcut to your application". -->
+            <Directory Id='ProgramMenuFolder'>
+                <Directory Id='ApplicationProgramsFolder' Name='Visor'/>
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id='ApplicationProgramsFolder'>
+            <Component Id='ApplicationShortcut' Guid='*'>
+                <Shortcut Id='ApplicationStartMenuShortcut'
+                    Name='Visor'
+                    Description='RViz alternative ROS 2 viewer'
+                    Target='[Bin]visor.exe'
+                    WorkingDirectory='Bin'
+                    Icon='ProductICO'/>
+                <RemoveFolder Id='CleanUpShortCut' Directory='ApplicationProgramsFolder' On='uninstall'/>
+                <!-- A component with a non-advertised shortcut needs an HKCU registry value as its KeyPath (ICE43). -->
+                <RegistryValue Root='HKCU' Key='Software\Visor' Name='installed' Type='integer' Value='1' KeyPath='yes'/>
+            </Component>
+        </DirectoryRef>
+
+        <Feature
+            Id='Binaries'
+            Title='Application'
+            Description='Installs the visor executable and its Start Menu shortcut.'
+            Level='1'
+            ConfigurableDirectory='APPLICATIONFOLDER'
+            AllowAdvertise='no'
+            Display='expand'
+            Absent='disallow'>
+            <ComponentRef Id='binary0'/>
+            <ComponentRef Id='ApplicationShortcut'/>
+
+            <Feature
+                Id='Environment'
+                Title='PATH Environment Variable'
+                Description='Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.'
+                Level='1'
+                Absent='allow'>
+                <ComponentRef Id='Path'/>
+            </Feature>
+        </Feature>
+
+        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+
+        <!-- $(sys.SOURCEFILEDIR) is this file's directory (with a trailing \), so the repository .ico resolves regardless of cwd. -->
+        <Icon Id='ProductICO' SourceFile='$(sys.SOURCEFILEDIR)..\..\..\assets\icons\visor.ico'/>
+        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
+
+        <UI>
+            <UIRef Id='WixUI_FeatureTree'/>
+            <!-- No license dialog (internal distribution): go straight from Welcome to the feature tree. -->
+            <Publish Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='CustomizeDlg' Order='99'>1</Publish>
+            <Publish Dialog='CustomizeDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg' Order='99'>1</Publish>
+        </UI>
+
+    </Product>
+
+</Wix>

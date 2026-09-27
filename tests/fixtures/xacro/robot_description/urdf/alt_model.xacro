@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Second model selected with ROBOT_MODEL:=alt; the entry file's macro call must fit both. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="robot" params="use_mesh">
+    <link name="base_link">
+      <visual>
+        <geometry>
+          <sphere radius="${0.2 / 2}" />
+        </geometry>
+        <material name="light_grey" />
+      </visual>
+    </link>
+  </xacro:macro>
+</robot>

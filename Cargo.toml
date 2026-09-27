@@ -1,0 +1,69 @@
+[workspace]
+members = ["plugins/sample", "plugins/tf_trajectory", "apps/visor"]
+# Bare `cargo run` / `cargo build` act on the shipped app; the quality gates pass `--workspace` so they still cover the library and the plugins.
+default-members = ["apps/visor"]
+
+[package]
+name = "visor"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.92"
+description = "An RViz alternative ROS 2 viewer: the library, plus the probe and baginfo CLIs (the GUI binary lives in apps/visor)"
+default-run = "probe"    # two CLIs in this package; the GUI is `cargo run` via default-members
+
+# Optimize dependencies (egui/wgpu/zenoh) even in dev builds so the debug binary runs at usable frame rates; the `*` glob does not cover workspace members, hence the explicit entry below.
+[profile.dev.package."*"]
+opt-level = 3
+
+# Vertex-baking helpers (push_prism and friends) live here and are called from plugins, where opt-level 0 measured 118 ms per 1000-segment bake against 4.4 ms at level 1; level 1 buys that back for ~2% build time and keeps debug info readable.
+[profile.dev.package.visor]
+opt-level = 1
+
+[dependencies]
+eframe = "0.35.0"
+egui = "0.35.0"
+egui_dock = { version = "0.20.1", features = ["serde"] }   # serde enabled to persist DockState in the config
+egui-wgpu = "0.35.0"
+wgpu = "29.0.4"                # do not bump to the 30 series (egui-wgpu 0.35 requires ^29)
+zenoh = "=1.8.0"               # fully pinned to match rmw_zenoh's zenoh-c 1.8.0
+nalgebra = "0.35.0"
+crossbeam-channel = "0.5.16"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+serde = { version = "1", features = ["derive"] }           # config (de)serialization
+toml = "0.8"                                                # config format (human-readable TOML)
+# URDF parsing (RobotModel display). Approved by the user; pinned because it pulls three XML parsers.
+# Only read_from_string is used: utils::rospack_find / convert_xacro_to_urdf spawn external commands, so they stay unused.
+urdf-rs = "0.9.0"
+# Mesh loading (STL / COLLADA / OBJ) for the RobotModel display. Approved by the user; the only added transitive
+# dependency is roxmltree. Fully pinned because this code depends on documented-by-source behaviour of 0.1.x
+# (COLLADA <unit> and node transforms are applied, <up_axis> is not), which a patch release could silently change.
+mesh-loader = "=0.1.13"
+# COLLADA material grouping that mesh-loader flattens away (renderers/urdf/collada.rs) and the in-app xacro
+# expansion (renderers/urdf/xacro). It is already compiled as mesh-loader's own XML parser, so making it direct
+# adds no code; pinned to the version mesh-loader resolves to.
+roxmltree = "=0.20.0"
+# Native file dialog. Pinned to the xdg-desktop-portal backend to avoid a hard GTK system dependency.
+# The executor is async-std (= zbus async-io). Choosing tokio would, via feature unification, pull zbus/tokio
+# into accesskit (AT-SPI) too, making zbus connections from non-tokio threads panic the reactor, so we avoid it.
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "async-std"] }
+# Image codecs (the only exception to CLAUDE.md's fixed tech stack; approved by the user).
+# Lightweight single-purpose crates for CompressedImage jpeg/png expansion. The `image` crate (heavy deps) is not used.
+zune-jpeg = "0.5"                                          # jpeg decode (default output is RGB)
+png = "0.18"                                               # png decode (8-bit normalized via EXPAND|STRIP_16)
+# LZ4 frame decompression for ROS 1 bag chunks (approved by the user).
+# 395/400 bags in the corpus use `lz4`, and their chunks are standard LZ4 frames (magic 04 22 4d 18),
+# so the stock frame decoder reads them. Pure Rust with no C toolchain; only the frame decoder is used.
+lz4_flex = "0.14"
+# zstd frame decompression for rosbag2 MCAP chunks (approved by the user 2026-09-19).
+# rosbag2's `zstd_fast` preset is common in real recordings, so this is the compression the real data uses.
+# Pure Rust like lz4_flex (no C toolchain); only the streaming frame decoder is used. The decoding API moved
+# between 0.7 / 0.8 / 0.9, hence the minor-version pin.
+ruzstd = "0.9"
+# rosbag2 sqlite3 storage (`.db3`; approved by the user 2026-09-19).
+# `bundled` compiles the SQLite amalgamation into the binary so no system libsqlite3 is needed on macOS or Linux.
+rusqlite = { version = "0.40", features = ["bundled"] }
+
+[dev-dependencies]
+# The bundled sample plugin. A dev-dependency because it depends on visor itself: Cargo allows that cycle for
+# tests/examples only, which is exactly where the sample belongs (examples/visor_with_sample.rs).
+visor-plugin-sample = { path = "plugins/sample" }

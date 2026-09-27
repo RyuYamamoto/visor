@@ -1,0 +1,4 @@
+/target
+
+# Development documents (design notes, task list, decision log) are kept outside the repository.
+/docs/

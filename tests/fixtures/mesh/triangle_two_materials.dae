@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One <geometry> with two bound materials, the shape mesh-loader flattens to a single colour. -->
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="red-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <diffuse><color sid="diffuse">1 0 0 1</color></diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="blue-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <diffuse><color sid="diffuse">0 0 1 1</color></diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_materials>
+    <material id="red-material" name="red">
+      <instance_effect url="#red-effect"/>
+    </material>
+    <material id="blue-material" name="blue">
+      <instance_effect url="#blue-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="two-mesh" name="two">
+      <mesh>
+        <source id="two-positions">
+          <float_array id="two-positions-array" count="18">0 0 0 1 0 0 0 1 0 2 0 0 3 0 0 2 1 0</float_array>
+          <technique_common>
+            <accessor source="#two-positions-array" count="6" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="two-normals">
+          <float_array id="two-normals-array" count="3">0 0 1</float_array>
+          <technique_common>
+            <accessor source="#two-normals-array" count="1" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="two-vertices">
+          <input semantic="POSITION" source="#two-positions"/>
+        </vertices>
+        <triangles material="red-material" count="1">
+          <input semantic="VERTEX" source="#two-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#two-normals" offset="1"/>
+          <p>0 0 1 0 2 0</p>
+        </triangles>
+        <polylist material="blue-material" count="1">
+          <input semantic="VERTEX" source="#two-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#two-normals" offset="1"/>
+          <vcount>4</vcount>
+          <p>3 0 4 0 5 0 2 0</p>
+        </polylist>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="two" name="two" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_geometry url="#two-mesh">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="red-material" target="#red-material"/>
+              <instance_material symbol="blue-material" target="#blue-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>

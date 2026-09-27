@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- One primitive, one mesh reachable through a relative path, and one package:// that no root provides, so partial success and the failure message can both be checked. -->
+<robot name="visor_sample_mesh">
+
+  <link name="base_link">
+    <visual name="body">
+      <geometry>
+        <box size="0.4 0.3 0.1"/>
+      </geometry>
+      <material name="visor_body">
+        <color rgba="0.62 0.70 0.78 1.0"/>
+      </material>
+    </visual>
+    <visual name="shell">
+      <origin xyz="0.0 0.0 0.05" rpy="0.0 0.0 0.0"/>
+      <geometry>
+        <mesh filename="../meshes/shell.stl" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <visual name="missing">
+      <geometry>
+        <mesh filename="package://visor_nowhere/meshes/absent.stl"/>
+      </geometry>
+    </visual>
+  </link>
+
+</robot>

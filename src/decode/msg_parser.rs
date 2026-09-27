@@ -1,0 +1,566 @@
+//! .msg text -> type definitions (line-oriented parser + TypeRegistry). Bounded `string<=N` / `T[<=N]` are read as their unbounded forms because XCDR1 encodes them identically; `wstring` stays unsupported.
+
+use std::collections::HashMap;
+use std::fmt;
+
+/// .msg primitive types (`string<=N` parses as String; `wstring` -> UnsupportedSyntax).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveType {
+    Bool,
+    Byte,
+    Char,
+    Int8,
+    UInt8,
+    Int16,
+    UInt16,
+    Int32,
+    UInt32,
+    Int64,
+    UInt64,
+    Float32,
+    Float64,
+    String,
+}
+
+impl PrimitiveType {
+    fn from_token(s: &str) -> Option<Self> {
+        match s {
+            "bool" => Some(Self::Bool),
+            "byte" => Some(Self::Byte),
+            "char" => Some(Self::Char),
+            "int8" => Some(Self::Int8),
+            "uint8" => Some(Self::UInt8),
+            "int16" => Some(Self::Int16),
+            "uint16" => Some(Self::UInt16),
+            "int32" => Some(Self::Int32),
+            "uint32" => Some(Self::UInt32),
+            "int64" => Some(Self::Int64),
+            "uint64" => Some(Self::UInt64),
+            "float32" => Some(Self::Float32),
+            "float64" => Some(Self::Float64),
+            "string" => Some(Self::String),
+            _ => None,
+        }
+    }
+}
+
+/// Field type (Complex holds a resolved fully qualified name `pkg/msg/Type`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FieldType {
+    Primitive(PrimitiveType),
+    Complex(String),
+}
+
+/// Array spec (`[<=N]` bounded arrays parse as Sequence: the bound is not on the wire).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArraySpec {
+    Scalar,
+    Fixed(usize),
+    Sequence,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    pub name: String,
+    pub ty: FieldType,
+    pub array: ArraySpec,
+    /// Raw default-value string (e.g. Quaternion's `float64 w 1` -> "1"); does not affect the wire format.
+    pub default_raw: Option<String>,
+}
+
+/// Constant definition (e.g. `uint8 FLOAT32 = 7`); value kept as a raw string, not numerically parsed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Constant {
+    pub name: String,
+    pub ty: PrimitiveType,
+    pub value_raw: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageDef {
+    /// `pkg/msg/Type`
+    pub full_name: String,
+    pub fields: Vec<Field>,
+    pub constants: Vec<Constant>,
+}
+
+/// Kinds of parse failure.
+#[derive(Debug, PartialEq, Eq)]
+pub enum MsgParseErrorKind {
+    /// Token that is neither a known type name nor a primitive.
+    UnknownFieldType(String),
+    /// Line with too few tokens or malformed shape.
+    InvalidFieldLine(String),
+    /// Unsupported syntax such as wstring.
+    UnsupportedSyntax(String),
+    /// validate() could not resolve a Complex reference (keeps field name and referent).
+    UnresolvedType { field: String, referenced: String },
+    /// full_name passed to insert_msg is not in `pkg/msg/Type` form.
+    InvalidFullName(String),
+}
+
+/// Parse error (type_name is `pkg/msg/Type`; line is 1-based, or 0 for a whole-file problem).
+#[derive(Debug, PartialEq, Eq)]
+pub struct MsgParseError {
+    pub kind: MsgParseErrorKind,
+    pub type_name: String,
+    pub line: usize,
+}
+
+impl fmt::Display for MsgParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.type_name)?;
+        if self.line > 0 {
+            write!(f, ":{}", self.line)?;
+        }
+        write!(f, ": ")?;
+        match &self.kind {
+            MsgParseErrorKind::UnknownFieldType(t) => write!(f, "unknown field type `{t}`"),
+            MsgParseErrorKind::InvalidFieldLine(l) => write!(f, "invalid field line `{l}`"),
+            MsgParseErrorKind::UnsupportedSyntax(t) => write!(f, "unsupported syntax `{t}`"),
+            MsgParseErrorKind::UnresolvedType { field, referenced } => {
+                write!(
+                    f,
+                    "field `{field}` references unresolved type `{referenced}`"
+                )
+            }
+            MsgParseErrorKind::InvalidFullName(n) => {
+                write!(f, "invalid full type name `{n}` (expected `pkg/msg/Type`)")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MsgParseError {}
+
+/// Type-definition registry (keyed by `pkg/msg/Type`). Clone is what lets a bag's definitions be layered over the app's.
+#[derive(Debug, Default, Clone)]
+pub struct TypeRegistry {
+    defs: HashMap<String, MessageDef>,
+}
+
+impl TypeRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Parse and register one file; reference resolution is deferred to validate().
+    pub fn insert_msg(&mut self, full_name: &str, text: &str) -> Result<(), MsgParseError> {
+        let def = parse_msg(full_name, text)?;
+        self.defs.insert(full_name.to_owned(), def);
+        Ok(())
+    }
+
+    /// Register all embedded .msg files generated by build.rs and run validate().
+    pub fn with_embedded() -> Result<Self, MsgParseError> {
+        let mut reg = Self::new();
+        for (full_name, text) in super::embedded::EMBEDDED_MSGS {
+            reg.insert_msg(full_name, text)?;
+        }
+        reg.validate()?;
+        Ok(reg)
+    }
+
+    /// Verify all Complex references are registered.
+    pub fn validate(&self) -> Result<(), MsgParseError> {
+        for def in self.defs.values() {
+            for field in &def.fields {
+                if let FieldType::Complex(referenced) = &field.ty
+                    && !self.defs.contains_key(referenced)
+                {
+                    return Err(MsgParseError {
+                        kind: MsgParseErrorKind::UnresolvedType {
+                            field: field.name.clone(),
+                            referenced: referenced.clone(),
+                        },
+                        type_name: def.full_name.clone(),
+                        line: 0,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Every unresolved Complex reference as (type, field, referenced); the non-fatal counterpart of validate().
+    pub fn unresolved(&self) -> Vec<(String, String, String)> {
+        let mut found: Vec<(String, String, String)> = self
+            .defs
+            .values()
+            .flat_map(|def| {
+                def.fields.iter().filter_map(move |field| match &field.ty {
+                    FieldType::Complex(referenced) if !self.defs.contains_key(referenced) => {
+                        Some((
+                            def.full_name.clone(),
+                            field.name.clone(),
+                            referenced.clone(),
+                        ))
+                    }
+                    _ => None,
+                })
+            })
+            .collect();
+        // HashMap iteration order is arbitrary, so sort to keep reports and drop order deterministic.
+        found.sort();
+        found.dedup_by(|a, b| a.0 == b.0);
+        found
+    }
+
+    /// Drop one definition; true if it was registered. Used to shed a type whose references cannot be satisfied.
+    pub fn remove(&mut self, full_name: &str) -> bool {
+        self.defs.remove(full_name).is_some()
+    }
+
+    pub fn get(&self, full_name: &str) -> Option<&MessageDef> {
+        self.defs.get(full_name)
+    }
+
+    pub fn len(&self) -> usize {
+        self.defs.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.defs.is_empty()
+    }
+}
+
+/// Parse one .msg file's text (full_name is `pkg/msg/Type`).
+pub fn parse_msg(full_name: &str, text: &str) -> Result<MessageDef, MsgParseError> {
+    let pkg = match full_name.split('/').collect::<Vec<_>>().as_slice() {
+        [pkg, "msg", ty] if !pkg.is_empty() && !ty.is_empty() => (*pkg).to_owned(),
+        _ => {
+            return Err(MsgParseError {
+                kind: MsgParseErrorKind::InvalidFullName(full_name.to_owned()),
+                type_name: full_name.to_owned(),
+                line: 0,
+            });
+        }
+    };
+    let err = |kind, line| MsgParseError {
+        kind,
+        type_name: full_name.to_owned(),
+        line,
+    };
+    let mut fields = Vec::new();
+    let mut constants = Vec::new();
+    for (idx, raw_line) in text.lines().enumerate() {
+        let line_no = idx + 1;
+        // Strip from `#` as a comment; string constants containing `#` don't occur in the bundled packages, so they're unsupported.
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        // A constant's `=` is any `=` that is not the tail of a bound's `<=` (`string<=10 s` is a field).
+        if is_constant_line(line) {
+            constants.push(parse_constant_line(line).map_err(|kind| err(kind, line_no))?);
+        } else {
+            fields.push(parse_field_line(line, &pkg).map_err(|kind| err(kind, line_no))?);
+        }
+    }
+    Ok(MessageDef {
+        full_name: full_name.to_owned(),
+        fields,
+        constants,
+    })
+}
+
+/// True when the line holds an `=` that is not part of a `<=` bound.
+fn is_constant_line(line: &str) -> bool {
+    line.match_indices('=')
+        .any(|(at, _)| !line[..at].ends_with('<'))
+}
+
+/// Parse a constant line `<prim> <NAME> = <value>` (whitespace around `=` is optional).
+fn parse_constant_line(line: &str) -> Result<Constant, MsgParseErrorKind> {
+    let invalid = || MsgParseErrorKind::InvalidFieldLine(line.to_owned());
+    let (left, value) = line.split_once('=').ok_or_else(invalid)?;
+    let mut tokens = left.split_whitespace();
+    let ty_token = tokens.next().ok_or_else(invalid)?;
+    let name = tokens.next().ok_or_else(invalid)?;
+    if tokens.next().is_some() || name.is_empty() {
+        return Err(invalid());
+    }
+    let ty = PrimitiveType::from_token(ty_token)
+        .ok_or_else(|| MsgParseErrorKind::UnknownFieldType(ty_token.to_owned()))?;
+    Ok(Constant {
+        name: name.to_owned(),
+        ty,
+        value_raw: value.trim().to_owned(),
+    })
+}
+
+/// Parse a field line `<type>[array] <name> [default...]`.
+fn parse_field_line(line: &str, pkg: &str) -> Result<Field, MsgParseErrorKind> {
+    let mut tokens = line.split_whitespace();
+    let ty_token = tokens
+        .next()
+        .ok_or_else(|| MsgParseErrorKind::InvalidFieldLine(line.to_owned()))?;
+    let name = tokens
+        .next()
+        .ok_or_else(|| MsgParseErrorKind::InvalidFieldLine(line.to_owned()))?;
+    let rest: Vec<&str> = tokens.collect();
+    let default_raw = if rest.is_empty() {
+        None
+    } else {
+        Some(rest.join(" "))
+    };
+    let (ty, array) = parse_type_token(ty_token, pkg)?;
+    Ok(Field {
+        name: name.to_owned(),
+        ty,
+        array,
+        default_raw,
+    })
+}
+
+/// Split a type token (e.g. `float64[9]`, `geometry_msgs/TransformStamped[]`, `string<=10[<=5]`).
+fn parse_type_token(token: &str, pkg: &str) -> Result<(FieldType, ArraySpec), MsgParseErrorKind> {
+    let unsupported = || MsgParseErrorKind::UnsupportedSyntax(token.to_owned());
+    let invalid = || MsgParseErrorKind::InvalidFieldLine(token.to_owned());
+    let (base, array) = match token.split_once('[') {
+        None => (token, ArraySpec::Scalar),
+        Some((base, rest)) => {
+            let inner = rest.strip_suffix(']').ok_or_else(invalid)?;
+            if inner.is_empty() {
+                (base, ArraySpec::Sequence)
+            } else if let Some(bound) = inner.strip_prefix("<=") {
+                // A bounded sequence is serialized exactly like an unbounded one, so only the bound's syntax is checked.
+                bound.parse::<usize>().map_err(|_| invalid())?;
+                (base, ArraySpec::Sequence)
+            } else {
+                (
+                    base,
+                    ArraySpec::Fixed(inner.parse().map_err(|_| invalid())?),
+                )
+            }
+        }
+    };
+    if base.starts_with("wstring") {
+        return Err(unsupported());
+    }
+    let base = match base.split_once("<=") {
+        Some(("string", bound)) => {
+            bound.parse::<usize>().map_err(|_| invalid())?;
+            "string"
+        }
+        Some(_) => return Err(unsupported()),
+        None => base,
+    };
+    if let Some(prim) = PrimitiveType::from_token(base) {
+        return Ok((FieldType::Primitive(prim), array));
+    }
+    if let Some((ref_pkg, ty)) = base.split_once('/') {
+        if ref_pkg.is_empty() || ty.is_empty() || ty.contains('/') {
+            return Err(MsgParseErrorKind::UnknownFieldType(base.to_owned()));
+        }
+        return Ok((FieldType::Complex(format!("{ref_pkg}/msg/{ty}")), array));
+    }
+    // An unqualified name starting uppercase is a same-package reference (e.g. `Transform` within geometry_msgs).
+    if base.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+        return Ok((FieldType::Complex(format!("{pkg}/msg/{base}")), array));
+    }
+    Err(MsgParseErrorKind::UnknownFieldType(base.to_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_one(text: &str) -> MessageDef {
+        parse_msg("test_msgs/msg/Sample", text).unwrap()
+    }
+
+    #[test]
+    fn p1_minimal_field_line() {
+        let def = parse_one("int32 x");
+        assert_eq!(
+            def.fields,
+            vec![Field {
+                name: "x".to_owned(),
+                ty: FieldType::Primitive(PrimitiveType::Int32),
+                array: ArraySpec::Scalar,
+                default_raw: None,
+            }]
+        );
+        assert!(def.constants.is_empty());
+    }
+
+    #[test]
+    fn p2_comments_and_blank_lines() {
+        let def = parse_one("# leading comment\n\nint32 x  # trailing comment\n   \n");
+        assert_eq!(def.fields.len(), 1);
+        assert_eq!(def.fields[0].name, "x");
+    }
+
+    #[test]
+    fn p3_array_specs() {
+        let def = parse_one(
+            "float64[9] cov\nfloat64[] values\ngeometry_msgs/TransformStamped[] transforms",
+        );
+        assert_eq!(def.fields[0].array, ArraySpec::Fixed(9));
+        assert_eq!(
+            def.fields[0].ty,
+            FieldType::Primitive(PrimitiveType::Float64)
+        );
+        assert_eq!(def.fields[1].array, ArraySpec::Sequence);
+        assert_eq!(def.fields[2].array, ArraySpec::Sequence);
+        assert_eq!(
+            def.fields[2].ty,
+            FieldType::Complex("geometry_msgs/msg/TransformStamped".to_owned())
+        );
+    }
+
+    #[test]
+    fn p4_constants() {
+        let def = parse_one("uint8 UINT8   = 2\nint8 STATUS_NO_FIX=-1\nuint8 datatype");
+        assert_eq!(
+            def.constants,
+            vec![
+                Constant {
+                    name: "UINT8".to_owned(),
+                    ty: PrimitiveType::UInt8,
+                    value_raw: "2".to_owned(),
+                },
+                Constant {
+                    name: "STATUS_NO_FIX".to_owned(),
+                    ty: PrimitiveType::Int8,
+                    value_raw: "-1".to_owned(),
+                },
+            ]
+        );
+        assert_eq!(def.fields.len(), 1);
+    }
+
+    #[test]
+    fn p5_field_default_value() {
+        let def = parse_one("float64 w 1");
+        assert_eq!(def.fields[0].default_raw, Some("1".to_owned()));
+    }
+
+    #[test]
+    fn p6_unqualified_reference_gets_own_package() {
+        let def = parse_msg("geometry_msgs/msg/TransformStamped", "Transform transform").unwrap();
+        assert_eq!(
+            def.fields[0].ty,
+            FieldType::Complex("geometry_msgs/msg/Transform".to_owned())
+        );
+    }
+
+    #[test]
+    fn p7_bounded_types_read_as_their_unbounded_forms() {
+        let def = parse_one("string<=10 s\nint8[<=5] a\nstring<=3[<=2] names\nuint8 K=3");
+        assert_eq!(
+            def.fields[0].ty,
+            FieldType::Primitive(PrimitiveType::String)
+        );
+        assert_eq!(def.fields[0].array, ArraySpec::Scalar);
+        assert_eq!(def.fields[1].ty, FieldType::Primitive(PrimitiveType::Int8));
+        assert_eq!(def.fields[1].array, ArraySpec::Sequence);
+        assert_eq!(
+            def.fields[2].ty,
+            FieldType::Primitive(PrimitiveType::String)
+        );
+        assert_eq!(def.fields[2].array, ArraySpec::Sequence);
+        // A real constant on the same file is still a constant, so `<=` detection did not swallow `=`.
+        assert_eq!(def.constants[0].name, "K");
+        // A bound that is not a number is a malformed line, not silently accepted.
+        let e = parse_msg("test_msgs/msg/Sample", "string<=x s").unwrap_err();
+        assert!(matches!(e.kind, MsgParseErrorKind::InvalidFieldLine(_)));
+    }
+
+    #[test]
+    fn p7_unsupported_syntax() {
+        for line in ["wstring w", "wstring<=4 w", "int8<=5 a"] {
+            let e = parse_msg("test_msgs/msg/Sample", line).unwrap_err();
+            assert!(
+                matches!(e.kind, MsgParseErrorKind::UnsupportedSyntax(_)),
+                "line `{line}` -> {e:?}"
+            );
+            assert_eq!(e.line, 1);
+        }
+    }
+
+    #[test]
+    fn p8_invalid_lines_carry_line_number() {
+        let e = parse_msg("test_msgs/msg/Sample", "int32 x\nfloat128 y").unwrap_err();
+        assert_eq!(
+            e.kind,
+            MsgParseErrorKind::UnknownFieldType("float128".to_owned())
+        );
+        assert_eq!(e.line, 2);
+
+        let e = parse_msg("test_msgs/msg/Sample", "int32").unwrap_err();
+        assert_eq!(
+            e.kind,
+            MsgParseErrorKind::InvalidFieldLine("int32".to_owned())
+        );
+
+        let e = parse_msg("bad_name", "int32 x").unwrap_err();
+        assert_eq!(
+            e.kind,
+            MsgParseErrorKind::InvalidFullName("bad_name".to_owned())
+        );
+    }
+
+    #[test]
+    fn p9_all_embedded_msgs_parse_and_validate() {
+        let reg = TypeRegistry::with_embedded().unwrap();
+        assert_eq!(reg.len(), 104);
+        let header = reg.get("std_msgs/msg/Header").unwrap();
+        assert_eq!(
+            header.fields[0].ty,
+            FieldType::Complex("builtin_interfaces/msg/Time".to_owned())
+        );
+        let quat = reg.get("geometry_msgs/msg/Quaternion").unwrap();
+        assert_eq!(quat.fields[3].name, "w");
+        assert_eq!(quat.fields[3].default_raw, Some("1".to_owned()));
+        let point_field = reg.get("sensor_msgs/msg/PointField").unwrap();
+        assert!(
+            point_field
+                .constants
+                .iter()
+                .any(|c| c.name == "FLOAT32" && c.value_raw == "7")
+        );
+    }
+
+    #[test]
+    fn validate_reports_unresolved_reference() {
+        let mut reg = TypeRegistry::new();
+        reg.insert_msg("test_msgs/msg/Broken", "test_msgs/Missing dep")
+            .unwrap();
+        let e = reg.validate().unwrap_err();
+        assert_eq!(
+            e.kind,
+            MsgParseErrorKind::UnresolvedType {
+                field: "dep".to_owned(),
+                referenced: "test_msgs/msg/Missing".to_owned(),
+            }
+        );
+        assert_eq!(e.type_name, "test_msgs/msg/Broken");
+    }
+
+    #[test]
+    fn unresolved_lists_one_entry_per_type_and_remove_sheds_it() {
+        let mut reg = TypeRegistry::new();
+        reg.insert_msg(
+            "test_msgs/msg/Broken",
+            "test_msgs/Missing a\ntest_msgs/Gone b",
+        )
+        .unwrap();
+        reg.insert_msg("test_msgs/msg/Fine", "int32 x").unwrap();
+        let unresolved = reg.unresolved();
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].0, "test_msgs/msg/Broken");
+        assert!(reg.remove("test_msgs/msg/Broken"));
+        assert!(!reg.remove("test_msgs/msg/Broken"));
+        assert!(reg.unresolved().is_empty());
+        assert!(reg.validate().is_ok());
+        assert!(reg.get("test_msgs/msg/Fine").is_some());
+    }
+
+    #[test]
+    fn embedded_definitions_have_nothing_unresolved() {
+        let reg = TypeRegistry::with_embedded().unwrap();
+        assert!(reg.unresolved().is_empty());
+    }
+}

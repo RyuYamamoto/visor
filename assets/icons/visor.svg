@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- フラット暗背景 + 円形ベゼル -->
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="#0E141B" stroke="#223041" stroke-width="2"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#223041" stroke-width="3"/>
+  <g stroke="#223041" stroke-width="6" stroke-linecap="round">
+    <line x1="256" y1="60"  x2="256" y2="78"/>
+    <line x1="452" y1="256" x2="434" y2="256"/>
+    <line x1="256" y1="452" x2="256" y2="434"/>
+    <line x1="60"  y1="256" x2="78"  y2="256"/>
+  </g>
+
+  <!-- レンジアーク（V の視野内、走査） -->
+  <g fill="none" stroke="#0A7E8C" stroke-width="9" stroke-linecap="round">
+    <path d="M180 201 Q256 150 332 201"/>
+    <path d="M155 158 Q256 100 357 158"/>
+  </g>
+
+  <!-- V（Visor の頭文字＝視野コーンの輪郭） -->
+  <path d="M150 150 L256 330 L362 150" fill="none" stroke="#00E5FF"
+        stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 走査の当たり点（パープルの1アクセント） -->
+  <circle cx="332" cy="201" r="13" fill="#B388FF"/>
+
+  <!-- 頂点ノード（センサ原点） -->
+  <circle cx="256" cy="330" r="18" fill="#0E141B" stroke="#00E5FF" stroke-width="8"/>
+</svg>

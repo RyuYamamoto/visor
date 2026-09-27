@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- No xacro namespace on purpose: a plain URDF fragment is a valid include. -->
+<robot>
+  <material name="black">
+    <color rgba="0.0 0.0 0.0 1.0" />
+  </material>
+  <material name="light_grey">
+    <color rgba="0.8 0.8 0.8 1.0" />
+  </material>
+</robot>

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="robot" params="use_mesh">
+    <xacro:property name="PI" value="3.1415926535897931" />
+    <xacro:property name="wheel_radius" value="0.05" />
+    <xacro:property name="wheel_tread" value="0.4" />
+    <xacro:macro name="drive_wheel" params="suffix offset length:=0.03">
+      <link name="${suffix}_wheel_link">
+        <inertial>
+          <mass value="2.0" />
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <inertia ixx="5e-03" ixy="0" ixz="0" iyy="5e-03" iyz="0" izz="1e-02" />
+        </inertial>
+        <visual>
+          <origin xyz="0 ${wheel_tread * offset / 2} ${wheel_radius}" rpy="${PI / 2} 0 0" />
+          <geometry>
+            <cylinder length="${length}" radius="${wheel_radius}" />
+          </geometry>
+          <material name="black" />
+        </visual>
+      </link>
+      <joint name="${suffix}_wheel_joint" type="continuous">
+        <parent link="base_link" />
+        <child link="${suffix}_wheel_link" />
+        <axis xyz="0 1 0" />
+      </joint>
+    </xacro:macro>
+    <link name="base_link">
+      <xacro:if value="${use_mesh}">
+        <visual>
+          <geometry>
+            <mesh filename="package://mesh/triangle_ascii.stl" />
+          </geometry>
+          <material name="light_grey" />
+        </visual>
+      </xacro:if>
+      <xacro:unless value="${use_mesh}">
+        <visual>
+          <geometry>
+            <box size="0.7 0.53 0.07" />
+          </geometry>
+          <material name="light_grey" />
+        </visual>
+      </xacro:unless>
+    </link>
+    <xacro:drive_wheel suffix="left" offset="1" />
+    <xacro:drive_wheel suffix="right" offset="-1" length="0.04" />
+  </xacro:macro>
+</robot>

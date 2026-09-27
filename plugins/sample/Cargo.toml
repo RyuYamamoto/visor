@@ -1,0 +1,15 @@
+[package]
+name = "visor-plugin-sample"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "Sample visor visualization plugin: a custom .msg type, a 3D renderer for it, and a dock panel"
+publish = false
+
+[dependencies]
+# Plugins depend only on visor's `plugin` facade; the shared dependency versions come from this same workspace.
+visor = { path = "../.." }
+egui = "0.35.0"
+nalgebra = "0.35.0"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }

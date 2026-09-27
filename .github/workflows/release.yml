@@ -1,0 +1,107 @@
+name: release
+
+# On a v* tag push, build the .deb (Linux) and the .msi (Windows), create the GitHub Release and attach both.
+# workflow_dispatch is a manual dry run: it builds without creating a release (outputs land in Actions artifacts).
+# deb and windows do not wait for each other; announce a release only after both are green.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # eframe/winit (X11/Wayland) のビルドに必要なシステムライブラリ。
+      # rfd は xdg-portal バックエンドなので GTK は不要。
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-dev libwayland-dev \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-bundle
+        run: cargo install cargo-bundle --locked
+
+      - name: Build .deb
+        working-directory: apps/visor
+        run: cargo bundle --release --format deb
+
+      - name: Upload artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visor-deb
+          path: target/release/bundle/deb/*.deb
+
+      - name: Create GitHub Release and attach .deb
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/release/bundle/deb/*.deb
+          generate_release_notes: true
+
+  # The windows job builds the .msi with cargo-wix; WiX 3.14 and the Windows SDK's rc.exe ship with the runner.
+  # clippy and test run first every time, so only a commit that passes both on Windows becomes an .msi.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # This job runs clippy, so pin the toolchain to Cargo.toml's rust-version (MSRV): on plain stable a new lint
+      # hitting existing code would block a release (1.98 raised 3 such findings).
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.92.0
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix --version 0.3.9 --locked
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      # Runs the release build and the .msi generation in one go (the crt-static flag from .cargo/config.toml applies here).
+      - name: Build release and .msi
+        run: cargo wix -p visor-app --nocapture
+
+      # Without crt-static the exe would not start on a PC without the VC++ redistributable; fail if any VC runtime DLL is imported.
+      - name: Check visor.exe does not import the VC runtime
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $dumpbin = & $vswhere -latest -find 'VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe' | Select-Object -First 1
+          if (-not $dumpbin) { Write-Error 'dumpbin.exe not found'; exit 1 }
+          $deps = & $dumpbin /DEPENDENTS target\release\visor.exe
+          $deps
+          if ($deps -match 'VCRUNTIME|MSVCP|api-ms-win-crt') {
+            Write-Error 'visor.exe imports the VC runtime; crt-static did not take effect'
+            exit 1
+          }
+
+      - name: Upload artifact (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visor-msi
+          path: target/wix/*.msi
+
+      - name: Attach .msi to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/wix/*.msi
+          generate_release_notes: true

@@ -1,0 +1,4 @@
+# Windows only: link the VC runtime statically so visor.exe starts on machines without the VC++ redistributable.
+# No effect on other targets.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

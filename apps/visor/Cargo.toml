@@ -1,0 +1,50 @@
+[package]
+name = "visor-app"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.92"
+description = "An RViz alternative ROS 2 viewer (connects directly as a zenoh client)"
+
+# The shipped binary. It lives in its own package because a plugin depends on the `visor` library,
+# so the library itself cannot depend on plugins.
+[[bin]]
+name = "visor"
+path = "src/main.rs"
+
+# cargo bundle metadata (produces macOS .app / Linux .deb / .AppImage: `cargo bundle --release`)
+[package.metadata.bundle]
+name = "Visor"
+identifier = "dev.visor.viewer"
+category = "public.app-category.developer-tools"
+# Given multiple-resolution PNGs, bundle assembles .icns/.ico and installs into hicolor on Linux
+icon = [
+    "../../assets/icons/icon_32.png",
+    "../../assets/icons/icon_64.png",
+    "../../assets/icons/icon_128.png",
+    "../../assets/icons/icon_256.png",
+    "../../assets/icons/icon_512.png",
+    "../../assets/icons/icon_1024.png",
+]
+
+# Strings shown in visor.exe's Properties > Details tab; FileVersion / ProductVersion come from [package] (winresource).
+[package.metadata.winresource]
+ProductName = "Visor"
+FileDescription = "Visor - ROS 2 viewer"
+
+# cargo-wix metadata (`cargo wix -p visor-app` from the workspace root -> target/wix/Visor-<version>-x86_64.msi).
+# `name` is required: the default is the package name `visor-app`, which would become the install folder and the
+# entry in Programs and Features. The installer itself is apps/visor/wix/main.wxs.
+[package.metadata.wix]
+name = "Visor"
+
+[dependencies]
+visor = { path = "../.." }
+eframe = "0.35.0"
+# Bundled plugins, registered in main.rs. Adding a plugin is one dependency line plus one registrar call.
+visor-plugin-tf-trajectory = { path = "../../plugins/tf_trajectory" }
+
+[build-dependencies]
+# Windows exe icon + version info. PE resources cannot be
+# embedded by std, so build.rs calls winresource (the maintained fork of winres) only when the target OS is
+# Windows; it finds the Windows SDK's rc.exe by itself and takes the version strings from [package].
+winresource = "0.1"
