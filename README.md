@@ -3,6 +3,8 @@
 A homegrown ROS 2 viewer (an RViz2 alternative) written in Rust that connects
 directly to a zenoh router as a zenoh client.
 
+https://github.com/user-attachments/assets/0ce9e206-ab35-4061-8f48-48e2ac753c60
+
 ## Requirements
 
 - Rust 1.92 or newer (rustup recommended)
