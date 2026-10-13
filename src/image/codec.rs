@@ -19,7 +19,9 @@ pub fn decode_compressed(format: &str, data: &[u8]) -> Result<ColorImage, Conver
     let lower = format.to_ascii_lowercase();
     if lower.contains("compresseddepth") {
         // Distinct from a generic "unknown format" so the panel can say depth compression isn't handled.
-        return Err(ConvertError::UnsupportedEncoding("compressedDepth".to_owned()));
+        return Err(ConvertError::UnsupportedEncoding(
+            "compressedDepth".to_owned(),
+        ));
     }
     let codec = if lower.contains("jpeg") || lower.contains("jpg") {
         Codec::Jpeg
@@ -41,13 +43,16 @@ fn detect_magic(data: &[u8]) -> Result<Codec, ConvertError> {
     } else if data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
         Ok(Codec::Png)
     } else {
-        Err(ConvertError::UnsupportedEncoding("unknown compressed format".to_owned()))
+        Err(ConvertError::UnsupportedEncoding(
+            "unknown compressed format".to_owned(),
+        ))
     }
 }
 
 fn decode_jpeg(data: &[u8]) -> Result<ColorImage, ConvertError> {
     // zune-jpeg reads through its own cursor type (implements the reader trait).
-    let mut decoder = zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(data));
+    let mut decoder =
+        zune_jpeg::JpegDecoder::new(zune_jpeg::zune_core::bytestream::ZCursor::new(data));
     let pixels = decoder
         .decode()
         .map_err(|e| ConvertError::InvalidImage(format!("jpeg decode failed: {e}")))?;
@@ -56,7 +61,9 @@ fn decode_jpeg(data: &[u8]) -> Result<ColorImage, ConvertError> {
         .ok_or_else(|| ConvertError::InvalidImage("jpeg missing header info".to_owned()))?;
     let (w, h) = (info.width as usize, info.height as usize);
     if w == 0 || h == 0 {
-        return Err(ConvertError::InvalidImage("jpeg zero-sized image".to_owned()));
+        return Err(ConvertError::InvalidImage(
+            "jpeg zero-sized image".to_owned(),
+        ));
     }
     // zune-jpeg emits RGB by default; grayscale sources come back as 1 component, CMYK-ish as 4.
     let channels = pixels.len() / (w * h);
@@ -64,7 +71,11 @@ fn decode_jpeg(data: &[u8]) -> Result<ColorImage, ConvertError> {
         3 => to_rgba(&pixels, 3, |p| [p[0], p[1], p[2], 255]),
         1 => to_rgba(&pixels, 1, |p| [p[0], p[0], p[0], 255]),
         4 => to_rgba(&pixels, 4, |p| [p[0], p[1], p[2], p[3]]),
-        n => return Err(ConvertError::InvalidImage(format!("jpeg unexpected {n} components"))),
+        n => {
+            return Err(ConvertError::InvalidImage(format!(
+                "jpeg unexpected {n} components"
+            )));
+        }
     };
     Ok(ColorImage::from_rgba_unmultiplied([w, h], &rgba))
 }
@@ -91,7 +102,11 @@ fn decode_png(data: &[u8]) -> Result<ColorImage, ConvertError> {
         png::ColorType::GrayscaleAlpha => to_rgba(valid, 2, |p| [p[0], p[0], p[0], p[1]]),
         png::ColorType::Rgb => to_rgba(valid, 3, |p| [p[0], p[1], p[2], 255]),
         png::ColorType::Rgba => to_rgba(valid, 4, |p| [p[0], p[1], p[2], p[3]]),
-        other => return Err(ConvertError::InvalidImage(format!("png unexpected color type {other:?}"))),
+        other => {
+            return Err(ConvertError::InvalidImage(format!(
+                "png unexpected color type {other:?}"
+            )));
+        }
     };
     Ok(ColorImage::from_rgba_unmultiplied([w, h], &rgba))
 }
@@ -139,7 +154,10 @@ mod tests {
     #[test]
     fn compressed_depth_is_reported_unsupported() {
         let err = decode_compressed("16UC1; compressedDepth png", &[0; 16]).unwrap_err();
-        assert_eq!(err, ConvertError::UnsupportedEncoding("compressedDepth".to_owned()));
+        assert_eq!(
+            err,
+            ConvertError::UnsupportedEncoding("compressedDepth".to_owned())
+        );
     }
 
     #[test]
@@ -150,7 +168,8 @@ mod tests {
 
     #[test]
     fn corrupt_jpeg_payload_is_invalid_not_a_panic() {
-        let err = decode_compressed("rgb8; jpeg compressed bgr8", &[0xFF, 0xD8, 0x00, 0x01]).unwrap_err();
+        let err =
+            decode_compressed("rgb8; jpeg compressed bgr8", &[0xFF, 0xD8, 0x00, 0x01]).unwrap_err();
         assert!(matches!(err, ConvertError::InvalidImage(_)));
     }
 }

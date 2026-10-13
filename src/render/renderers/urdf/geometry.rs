@@ -363,8 +363,11 @@ mod tests {
                 [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
             ),
         ]);
-        let built = build(&from_slice(&bytes, "zero_normal.stl"), &MeshParams::default())
-            .expect("builds");
+        let built = build(
+            &from_slice(&bytes, "zero_normal.stl"),
+            &MeshParams::default(),
+        )
+        .expect("builds");
         assert_eq!((built.triangles, built.skipped), (2, 0));
         let verts = vertices(&built.batch);
         // The stored normal is used as-is, and the zeroed one is replaced by the triangle's own face normal.
@@ -412,7 +415,8 @@ mod tests {
         assert!(close(verts[1].0, [0.01, 0.0, 0.0]));
         assert!(close(verts[2].0, [0.0, 0.02, 0.0]));
         // Node <matrix> translation likewise arrives already applied.
-        let offset = build(&load("triangle_node_offset.dae"), &MeshParams::default()).expect("builds");
+        let offset =
+            build(&load("triangle_node_offset.dae"), &MeshParams::default()).expect("builds");
         let verts = vertices(&offset.batch);
         assert!(close(verts[0].0, [0.5, -0.25, 0.0]));
         assert!(close(verts[1].0, [1.5, -0.25, 0.0]));
@@ -500,8 +504,11 @@ mod tests {
                 [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
             ),
         ]);
-        let built = build(&from_slice(&bytes, "degenerate.stl"), &MeshParams::default())
-            .expect("builds");
+        let built = build(
+            &from_slice(&bytes, "degenerate.stl"),
+            &MeshParams::default(),
+        )
+        .expect("builds");
         assert_eq!((built.triangles, built.skipped), (1, 1));
         assert_eq!(built.batch.count, 3);
         // A file where nothing survives yields no batch at all.
@@ -531,7 +538,11 @@ mod tests {
     #[test]
     fn unusable_scale_is_rejected() {
         let scene = load("triangle_z_up.dae");
-        for scale in [[0.0, 1.0, 1.0], [1.0, f64::NAN, 1.0], [1.0, 1.0, f64::INFINITY]] {
+        for scale in [
+            [0.0, 1.0, 1.0],
+            [1.0, f64::NAN, 1.0],
+            [1.0, 1.0, f64::INFINITY],
+        ] {
             let params = MeshParams {
                 scale,
                 ..Default::default()

@@ -454,11 +454,23 @@ mod tests {
 
     #[test]
     fn extract_rejects_inconsistent_data_with_diagnostics() {
-        let err = extract_grid(&grid_value(4, 3, 0.5, pose_value(0.0, 0.0, 0.0), vec![0; 11]))
-            .expect_err("length mismatch");
+        let err = extract_grid(&grid_value(
+            4,
+            3,
+            0.5,
+            pose_value(0.0, 0.0, 0.0),
+            vec![0; 11],
+        ))
+        .expect_err("length mismatch");
         assert_eq!(err, "data length 11 does not match 4x3 cells");
-        let err = extract_grid(&grid_value(4, 3, 0.0, pose_value(0.0, 0.0, 0.0), vec![0; 12]))
-            .expect_err("zero resolution");
+        let err = extract_grid(&grid_value(
+            4,
+            3,
+            0.0,
+            pose_value(0.0, 0.0, 0.0),
+            vec![0; 12],
+        ))
+        .expect_err("zero resolution");
         assert_eq!(err, "resolution must be > 0 (got 0)");
         let err = extract_grid(&grid_value(0, 3, 0.5, pose_value(0.0, 0.0, 0.0), vec![]))
             .expect_err("zero width");
@@ -594,7 +606,13 @@ mod tests {
         let mut renderer = OccupancyGridRenderer::default();
         let buffer = tf_with(vec![map_tf(0.0, 1_000)]);
         // 4x3 all-zero full map -> generation 1.
-        renderer.on_message(&grid_value(4, 3, 1.0, pose_value(0.0, 0.0, 0.0), vec![0; 12]));
+        renderer.on_message(&grid_value(
+            4,
+            3,
+            1.0,
+            pose_value(0.0, 0.0, 0.0),
+            vec![0; 12],
+        ));
         let tf = TfContext {
             buffer: &buffer,
             fixed_frame: "odom",
@@ -618,10 +636,24 @@ mod tests {
     #[test]
     fn on_companion_rejects_out_of_range_without_touching_map() {
         let mut renderer = OccupancyGridRenderer::default();
-        renderer.on_message(&grid_value(4, 3, 1.0, pose_value(0.0, 0.0, 0.0), vec![7; 12]));
+        renderer.on_message(&grid_value(
+            4,
+            3,
+            1.0,
+            pose_value(0.0, 0.0, 0.0),
+            vec![7; 12],
+        ));
         // Out of range (x+width > 4) is discarded; the map is unchanged.
         renderer.on_companion(&update_value(3, 0, 2, 1, vec![1, 2]));
-        assert!(renderer.grid.as_ref().unwrap().pixels.iter().all(|&v| v == 7));
+        assert!(
+            renderer
+                .grid
+                .as_ref()
+                .unwrap()
+                .pixels
+                .iter()
+                .all(|&v| v == 7)
+        );
         // With no full map received, the diff is ignored (no panic).
         let mut empty = OccupancyGridRenderer::default();
         empty.on_companion(&update_value(0, 0, 1, 1, vec![5]));
@@ -639,7 +671,13 @@ mod tests {
         let mut renderer = OccupancyGridRenderer::default();
         assert!(!renderer.draw_behind);
         let buffer = tf_with(vec![map_tf(0.0, 1_000)]);
-        renderer.on_message(&grid_value(2, 2, 1.0, pose_value(0.0, 0.0, 0.0), vec![0; 4]));
+        renderer.on_message(&grid_value(
+            2,
+            2,
+            1.0,
+            pose_value(0.0, 0.0, 0.0),
+            vec![0; 4],
+        ));
         let tf = TfContext {
             buffer: &buffer,
             fixed_frame: "odom",

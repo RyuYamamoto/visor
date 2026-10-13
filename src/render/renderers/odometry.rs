@@ -379,12 +379,15 @@ mod tests {
 
     fn tf_identity() -> TfBuffer {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![TfTransform {
+        buffer.insert(&tf_update(
+            vec![TfTransform {
                 parent: "map".to_owned(),
                 child: "odom".to_owned(),
                 stamp: 0,
                 transform: Isometry3::identity(),
-            }], true));
+            }],
+            true,
+        ));
         buffer
     }
 
@@ -480,7 +483,10 @@ mod tests {
         assert!((max_r - 0.1).abs() < 1e-5, "head radius 0.1, got {max_r}");
         // Flat shading makes per-face brightness differ (shading is applied).
         let shades: Vec<f32> = verts.iter().step_by(3).map(|v| v.color[0]).collect();
-        assert!(shades.iter().cloned().fold(f32::MAX, f32::min) < shades.iter().cloned().fold(f32::MIN, f32::max));
+        assert!(
+            shades.iter().cloned().fold(f32::MAX, f32::min)
+                < shades.iter().cloned().fold(f32::MIN, f32::max)
+        );
     }
 
     #[test]

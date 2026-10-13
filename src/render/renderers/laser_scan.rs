@@ -561,10 +561,13 @@ mod tests {
         use crate::tf::buffer::{TfBuffer, tf_update};
         let mut renderer = LaserScanRenderer::default();
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 dyn_tf("map", "laser", 1.0, 1_000),
                 dyn_tf("map", "laser", 5.0, 2_000),
-            ], false));
+            ],
+            false,
+        ));
         // stamp=1500 is the midpoint of two samples -> interpolates to x=3 (not latest x=5).
         renderer.on_message(&scan_value_stamped("laser", 1_500, vec![Value::F32(2.0)]));
         let tf = TfContext {
@@ -607,10 +610,13 @@ mod tests {
         use crate::tf::buffer::{TfBuffer, tf_update};
         let mut renderer = LaserScanRenderer::default();
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 dyn_tf("map", "odom", 1.0, 1_000),
                 dyn_tf("odom", "laser", 1.0, 1_000),
-            ], false));
+            ],
+            false,
+        ));
         renderer.on_message(&scan_value("laser", vec![Value::F32(2.0)]));
         let map_tf = TfContext {
             buffer: &buffer,

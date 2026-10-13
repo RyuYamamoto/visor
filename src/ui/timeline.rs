@@ -132,8 +132,12 @@ fn scrub_slider(
     } else {
         return None;
     }
-    should_send_scrub(view.last_scrub_seek, Instant::now(), released || !response.dragged())
-        .then(|| TimelineAction::SeekTo(view.info.time_at_offset(position)))
+    should_send_scrub(
+        view.last_scrub_seek,
+        Instant::now(),
+        released || !response.dragged(),
+    )
+    .then(|| TimelineAction::SeekTo(view.info.time_at_offset(position)))
 }
 
 /// `132.45 / 228.10 s   1783300429.152` — bag-relative seconds for reading, the record's UNIX time for cross-referencing other logs (the form rosbag prints).
@@ -230,10 +234,18 @@ mod tests {
         let start = Instant::now();
         assert!(should_send_scrub(&mut last, start, false));
         // A second drag sample in the same window is suppressed.
-        assert!(!should_send_scrub(&mut last, start + Duration::from_millis(10), false));
+        assert!(!should_send_scrub(
+            &mut last,
+            start + Duration::from_millis(10),
+            false
+        ));
         assert!(should_send_scrub(&mut last, start + SCRUB_INTERVAL, false));
         // Release always lands, so the final position is never lost.
-        assert!(should_send_scrub(&mut last, start + Duration::from_millis(1), true));
+        assert!(should_send_scrub(
+            &mut last,
+            start + Duration::from_millis(1),
+            true
+        ));
         assert_eq!(last, None);
     }
 

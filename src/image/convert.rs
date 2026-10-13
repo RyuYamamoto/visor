@@ -56,7 +56,10 @@ pub struct Converted {
 }
 
 /// Convert a raw image to a `ColorImage`, applying depth normalization/colormap from `settings` when relevant.
-pub fn convert_raw(img: &RawImage<'_>, settings: &ImageSettings) -> Result<Converted, ConvertError> {
+pub fn convert_raw(
+    img: &RawImage<'_>,
+    settings: &ImageSettings,
+) -> Result<Converted, ConvertError> {
     if img.width == 0 || img.height == 0 {
         return Err(ConvertError::InvalidImage("zero-sized image".to_owned()));
     }
@@ -110,18 +113,20 @@ impl ChannelOrder {
 }
 
 /// One image row's byte slice, honoring `step` (row stride) and reporting short data.
-fn row_slice<'a>(img: &'a RawImage<'a>, row: usize, bytes_per_row: usize) -> Result<&'a [u8], ConvertError> {
+fn row_slice<'a>(
+    img: &'a RawImage<'a>,
+    row: usize,
+    bytes_per_row: usize,
+) -> Result<&'a [u8], ConvertError> {
     let start = row * img.step;
-    img.data
-        .get(start..start + bytes_per_row)
-        .ok_or_else(|| {
-            ConvertError::InvalidImage(format!(
-                "data too short: need step*height = {}*{} bytes, got {}",
-                img.step,
-                img.height,
-                img.data.len()
-            ))
-        })
+    img.data.get(start..start + bytes_per_row).ok_or_else(|| {
+        ConvertError::InvalidImage(format!(
+            "data too short: need step*height = {}*{} bytes, got {}",
+            img.step,
+            img.height,
+            img.data.len()
+        ))
+    })
 }
 
 fn color(img: &RawImage<'_>, order: ChannelOrder) -> Result<Converted, ConvertError> {
@@ -231,7 +236,9 @@ fn depth_image(
     let mut rgba = Vec::with_capacity(samples.len() * 4);
     for sample in samples {
         match sample {
-            Some(v) => rgba.extend_from_slice(&depth_color(normalize(*v, range), settings.depth_colormap)),
+            Some(v) => {
+                rgba.extend_from_slice(&depth_color(normalize(*v, range), settings.depth_colormap))
+            }
             // Invalid values stay fully transparent so "no data" is visually distinct.
             None => rgba.extend_from_slice(&[0, 0, 0, 0]),
         }
@@ -305,13 +312,25 @@ mod tests {
 
     /// First `n` pixels of the converted image as [r,g,b,a] arrays.
     fn head(c: &Converted, n: usize) -> Vec<[u8; 4]> {
-        c.image.pixels.iter().take(n).map(|p| [p.r(), p.g(), p.b(), p.a()]).collect()
+        c.image
+            .pixels
+            .iter()
+            .take(n)
+            .map(|p| [p.r(), p.g(), p.b(), p.a()])
+            .collect()
     }
 
     #[test]
     fn rgb8_maps_channels_directly() {
         let data = vec![10, 20, 30, 40, 50, 60];
-        let img = RawImage { width: 2, height: 1, encoding: "rgb8", is_bigendian: false, step: 6, data: &data };
+        let img = RawImage {
+            width: 2,
+            height: 1,
+            encoding: "rgb8",
+            is_bigendian: false,
+            step: 6,
+            data: &data,
+        };
         let c = convert_raw(&img, &ImageSettings::default()).unwrap();
         assert_eq!(head(&c, 2), vec![[10, 20, 30, 255], [40, 50, 60, 255]]);
         assert!(c.depth.is_none());
@@ -320,7 +339,14 @@ mod tests {
     #[test]
     fn bgr8_swaps_red_and_blue() {
         let data = vec![10, 20, 30];
-        let img = RawImage { width: 1, height: 1, encoding: "bgr8", is_bigendian: false, step: 3, data: &data };
+        let img = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "bgr8",
+            is_bigendian: false,
+            step: 3,
+            data: &data,
+        };
         let c = convert_raw(&img, &ImageSettings::default()).unwrap();
         assert_eq!(head(&c, 1), vec![[30, 20, 10, 255]]);
     }
@@ -329,14 +355,34 @@ mod tests {
     fn rgba8_and_bgra8_keep_alpha() {
         // egui stores premultiplied Color32, so compare against from_rgba_unmultiplied of the expected RGBA.
         let data = vec![10, 20, 30, 128];
-        let rgba = RawImage { width: 1, height: 1, encoding: "rgba8", is_bigendian: false, step: 4, data: &data };
+        let rgba = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "rgba8",
+            is_bigendian: false,
+            step: 4,
+            data: &data,
+        };
         assert_eq!(
-            convert_raw(&rgba, &ImageSettings::default()).unwrap().image.pixels[0],
+            convert_raw(&rgba, &ImageSettings::default())
+                .unwrap()
+                .image
+                .pixels[0],
             Color32::from_rgba_unmultiplied(10, 20, 30, 128)
         );
-        let bgra = RawImage { width: 1, height: 1, encoding: "bgra8", is_bigendian: false, step: 4, data: &data };
+        let bgra = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "bgra8",
+            is_bigendian: false,
+            step: 4,
+            data: &data,
+        };
         assert_eq!(
-            convert_raw(&bgra, &ImageSettings::default()).unwrap().image.pixels[0],
+            convert_raw(&bgra, &ImageSettings::default())
+                .unwrap()
+                .image
+                .pixels[0],
             Color32::from_rgba_unmultiplied(30, 20, 10, 128)
         );
     }
@@ -344,25 +390,62 @@ mod tests {
     #[test]
     fn mono8_replicates_luminance() {
         let data = vec![7, 200];
-        let img = RawImage { width: 2, height: 1, encoding: "mono8", is_bigendian: false, step: 2, data: &data };
-        assert_eq!(head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 2), vec![[7, 7, 7, 255], [200, 200, 200, 255]]);
+        let img = RawImage {
+            width: 2,
+            height: 1,
+            encoding: "mono8",
+            is_bigendian: false,
+            step: 2,
+            data: &data,
+        };
+        assert_eq!(
+            head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 2),
+            vec![[7, 7, 7, 255], [200, 200, 200, 255]]
+        );
     }
 
     #[test]
     fn opencv_aliases_map_to_mono8_and_bgr8() {
         let mono = vec![42];
-        let img = RawImage { width: 1, height: 1, encoding: "8UC1", is_bigendian: false, step: 1, data: &mono };
-        assert_eq!(head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 1), vec![[42, 42, 42, 255]]);
+        let img = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "8UC1",
+            is_bigendian: false,
+            step: 1,
+            data: &mono,
+        };
+        assert_eq!(
+            head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 1),
+            vec![[42, 42, 42, 255]]
+        );
         let bgr = vec![10, 20, 30];
-        let img = RawImage { width: 1, height: 1, encoding: "8UC3", is_bigendian: false, step: 3, data: &bgr };
-        assert_eq!(head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 1), vec![[30, 20, 10, 255]]);
+        let img = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "8UC3",
+            is_bigendian: false,
+            step: 3,
+            data: &bgr,
+        };
+        assert_eq!(
+            head(&convert_raw(&img, &ImageSettings::default()).unwrap(), 1),
+            vec![[30, 20, 10, 255]]
+        );
     }
 
     #[test]
     fn step_padding_does_not_shift_rows() {
         // width 1, rgb8 (3 bytes/px) but step 4 (1 padding byte per row).
         let data = vec![1, 2, 3, 99, 4, 5, 6, 99];
-        let img = RawImage { width: 1, height: 2, encoding: "rgb8", is_bigendian: false, step: 4, data: &data };
+        let img = RawImage {
+            width: 1,
+            height: 2,
+            encoding: "rgb8",
+            is_bigendian: false,
+            step: 4,
+            data: &data,
+        };
         let c = convert_raw(&img, &ImageSettings::default()).unwrap();
         assert_eq!(head(&c, 2), vec![[1, 2, 3, 255], [4, 5, 6, 255]]);
     }
@@ -370,15 +453,32 @@ mod tests {
     #[test]
     fn short_data_is_invalid() {
         let data = vec![1, 2];
-        let img = RawImage { width: 1, height: 1, encoding: "rgb8", is_bigendian: false, step: 3, data: &data };
-        assert!(matches!(convert_raw(&img, &ImageSettings::default()), Err(ConvertError::InvalidImage(_))));
+        let img = RawImage {
+            width: 1,
+            height: 1,
+            encoding: "rgb8",
+            is_bigendian: false,
+            step: 3,
+            data: &data,
+        };
+        assert!(matches!(
+            convert_raw(&img, &ImageSettings::default()),
+            Err(ConvertError::InvalidImage(_))
+        ));
     }
 
     #[test]
     fn mono16_honors_big_endian_and_normalizes_full_range() {
         // Two pixels: 0x0100 (256) and 0x0200 (512) in big-endian; min->0, max->255.
         let data = vec![0x01, 0x00, 0x02, 0x00];
-        let img = RawImage { width: 2, height: 1, encoding: "mono16", is_bigendian: true, step: 4, data: &data };
+        let img = RawImage {
+            width: 2,
+            height: 1,
+            encoding: "mono16",
+            is_bigendian: true,
+            step: 4,
+            data: &data,
+        };
         let c = convert_raw(&img, &ImageSettings::default()).unwrap();
         assert_eq!(head(&c, 2), vec![[0, 0, 0, 255], [255, 255, 255, 255]]);
     }
@@ -387,13 +487,26 @@ mod tests {
     fn depth_u16_excludes_zero_and_auto_ranges() {
         // Values: 0 (invalid), 100, 300 (little-endian). Auto range = (100, 300).
         let data = vec![0, 0, 100, 0, 44, 1];
-        let img = RawImage { width: 3, height: 1, encoding: "16UC1", is_bigendian: false, step: 6, data: &data };
+        let img = RawImage {
+            width: 3,
+            height: 1,
+            encoding: "16UC1",
+            is_bigendian: false,
+            step: 6,
+            data: &data,
+        };
         let c = convert_raw(&img, &settings(true, 0.0, 1.0, DepthColormap::Grayscale)).unwrap();
         let px = head(&c, 3);
         assert_eq!(px[0], [0, 0, 0, 0]); // invalid -> transparent
         assert_eq!(px[1], [0, 0, 0, 255]); // min -> black
         assert_eq!(px[2], [255, 255, 255, 255]); // max -> white
-        assert_eq!(c.depth.unwrap(), DepthInfo { range: (100.0, 300.0), unit: "mm" });
+        assert_eq!(
+            c.depth.unwrap(),
+            DepthInfo {
+                range: (100.0, 300.0),
+                unit: "mm"
+            }
+        );
     }
 
     #[test]
@@ -402,7 +515,14 @@ mod tests {
         for v in [f32::NAN, 0.0f32, 1.0f32, 2.0f32] {
             data.extend_from_slice(&v.to_le_bytes());
         }
-        let img = RawImage { width: 4, height: 1, encoding: "32FC1", is_bigendian: false, step: 16, data: &data };
+        let img = RawImage {
+            width: 4,
+            height: 1,
+            encoding: "32FC1",
+            is_bigendian: false,
+            step: 16,
+            data: &data,
+        };
         // Manual range 0..2 m, grayscale.
         let c = convert_raw(&img, &settings(false, 0.0, 2.0, DepthColormap::Grayscale)).unwrap();
         let px = head(&c, 4);
@@ -410,13 +530,26 @@ mod tests {
         assert_eq!(px[1], [0, 0, 0, 0]); // 0.0 invalid
         assert_eq!(px[2], [128, 128, 128, 255]); // 1.0 -> midpoint
         assert_eq!(px[3], [255, 255, 255, 255]); // 2.0 -> max
-        assert_eq!(c.depth.unwrap(), DepthInfo { range: (0.0, 2.0), unit: "m" });
+        assert_eq!(
+            c.depth.unwrap(),
+            DepthInfo {
+                range: (0.0, 2.0),
+                unit: "m"
+            }
+        );
     }
 
     #[test]
     fn unsupported_encoding_reports_name() {
         let data = vec![0; 8];
-        let img = RawImage { width: 2, height: 1, encoding: "yuv422", is_bigendian: false, step: 4, data: &data };
+        let img = RawImage {
+            width: 2,
+            height: 1,
+            encoding: "yuv422",
+            is_bigendian: false,
+            step: 4,
+            data: &data,
+        };
         match convert_raw(&img, &ImageSettings::default()) {
             Err(ConvertError::UnsupportedEncoding(name)) => assert_eq!(name, "yuv422"),
             _ => panic!("expected UnsupportedEncoding"),

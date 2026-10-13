@@ -355,7 +355,10 @@ fn parse_layout(value: &Value) -> Result<CloudLayout, String> {
             }
             // Accept both rgb (FLOAT32 packed) / rgba (UINT32) conventions plus non-standard UINT32 rgb (matching RViz).
             "rgb" | "rgba" => {
-                if count == 1 && matches!(datatype, DT_FLOAT32 | DT_UINT32) && offset + 4 <= point_step {
+                if count == 1
+                    && matches!(datatype, DT_FLOAT32 | DT_UINT32)
+                    && offset + 4 <= point_step
+                {
                     color = Some(ColorField {
                         offset,
                         has_alpha: name == "rgba",
@@ -433,8 +436,7 @@ fn extract_cloud(value: &Value) -> Result<ExtractedCloud, String> {
     };
     if layout.width > 0 && layout.height > 0 {
         // The last row need not include row_step padding (require (height-1)*row_step + the actual point row).
-        let required =
-            (layout.height - 1) * layout.row_step + layout.width * layout.point_step;
+        let required = (layout.height - 1) * layout.row_step + layout.width * layout.point_step;
         if data.len() < required {
             return Err(format!(
                 "data too short: {} bytes (expected at least {required} for {}x{} points)",
@@ -740,7 +742,10 @@ mod tests {
         ];
         let value = cloud_value(1, 1, 12, 12, false, fields, vec![0; 12]);
         let err = extract_cloud(&value).expect_err("integer x must be rejected");
-        assert!(err.contains("`x`") && err.contains("datatype 5"), "err={err}");
+        assert!(
+            err.contains("`x`") && err.contains("datatype 5"),
+            "err={err}"
+        );
     }
 
     #[test]
@@ -809,17 +814,7 @@ mod tests {
 
     #[test]
     fn skips_non_finite_points() {
-        let data = f32_bytes(&[
-            f32::NAN,
-            0.0,
-            0.0,
-            1.0,
-            f32::INFINITY,
-            0.0,
-            7.0,
-            8.0,
-            9.0,
-        ]);
+        let data = f32_bytes(&[f32::NAN, 0.0, 0.0, 1.0, f32::INFINITY, 0.0, 7.0, 8.0, 9.0]);
         let value = cloud_value(3, 1, 12, 36, false, xyz_fields(), data);
         let cloud = extract_cloud(&value).expect("valid cloud");
         assert_eq!(cloud.positions, vec![[7.0, 8.0, 9.0]]);
@@ -835,8 +830,12 @@ mod tests {
             rgba: None,
             intensity_range: None,
         };
-        let (batch, warning) =
-            pack_cloud(&cloud, ColorMode::Flat, [1, 2, 3, 4], &IntensityScale::default());
+        let (batch, warning) = pack_cloud(
+            &cloud,
+            ColorMode::Flat,
+            [1, 2, 3, 4],
+            &IntensityScale::default(),
+        );
         assert!(warning.is_none());
         assert_eq!(batch.count, 1);
         assert_eq!(&batch.bytes[12..16], &[1, 2, 3, 4]);
@@ -860,7 +859,10 @@ mod tests {
         );
         assert!(warning.is_none());
         assert_eq!(&batch.bytes[12..16], &colormap(0.0));
-        assert_eq!(&batch.bytes[POINT_STRIDE + 12..POINT_STRIDE + 16], &colormap(1.0));
+        assert_eq!(
+            &batch.bytes[POINT_STRIDE + 12..POINT_STRIDE + 16],
+            &colormap(1.0)
+        );
     }
 
     #[test]
@@ -877,10 +879,7 @@ mod tests {
             pack_cloud(&cloud, ColorMode::Rgb, [0; 4], &IntensityScale::default());
         assert!(warning.is_none());
         let lut = theme::srgb_to_linear_u8();
-        assert_eq!(
-            &batch.bytes[12..16],
-            &[lut[255], lut[128], lut[0], 200]
-        );
+        assert_eq!(&batch.bytes[12..16], &[lut[255], lut[128], lut[0], 200]);
     }
 
     #[test]
@@ -942,7 +941,10 @@ mod tests {
     fn scene_returns_points_batch_with_stamp_pose_as_model() {
         let mut renderer = PointCloud2Renderer::default();
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![dyn_tf(1.0, 1_000), dyn_tf(5.0, 2_000)], false));
+        buffer.insert(&tf_update(
+            vec![dyn_tf(1.0, 1_000), dyn_tf(5.0, 2_000)],
+            false,
+        ));
         renderer.on_message(&stamped_cloud_value(1_500, 2.0));
         let tf = TfContext {
             buffer: &buffer,

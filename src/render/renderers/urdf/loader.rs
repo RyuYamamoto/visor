@@ -319,9 +319,21 @@ mod tests {
         ask(&mut cache, first.clone(), &mut builds);
         assert_eq!(builds, 1);
         // Scale and fallback color are baked into the vertices, so either one changing is a different entry.
-        ask(&mut cache, key("/a.stl", [2.0; 3], [1, 1, 1, 255]), &mut builds);
-        ask(&mut cache, key("/a.stl", [1.0; 3], [9, 9, 9, 255]), &mut builds);
-        ask(&mut cache, key("/b.stl", [1.0; 3], [1, 1, 1, 255]), &mut builds);
+        ask(
+            &mut cache,
+            key("/a.stl", [2.0; 3], [1, 1, 1, 255]),
+            &mut builds,
+        );
+        ask(
+            &mut cache,
+            key("/a.stl", [1.0; 3], [9, 9, 9, 255]),
+            &mut builds,
+        );
+        ask(
+            &mut cache,
+            key("/b.stl", [1.0; 3], [1, 1, 1, 255]),
+            &mut builds,
+        );
         assert_eq!(builds, 4);
         ask(&mut cache, first, &mut builds);
         assert_eq!(builds, 4);

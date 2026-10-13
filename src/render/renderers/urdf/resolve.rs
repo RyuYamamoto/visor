@@ -378,7 +378,10 @@ mod tests {
         let text = error.to_string();
         assert!(text.contains("pkg"), "{text}");
         // Same join steps as resolve_package (the relative part is one segment), so the separators match on every OS.
-        let ament_candidate = Path::new("/opt/ros").join("share").join("pkg").join("meshes/a.stl");
+        let ament_candidate = Path::new("/opt/ros")
+            .join("share")
+            .join("pkg")
+            .join("meshes/a.stl");
         assert!(
             text.contains(&ament_candidate.display().to_string()),
             "{text}"

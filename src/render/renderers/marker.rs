@@ -169,12 +169,15 @@ impl Renderer for MarkerRenderer {
 
     fn settings_ui(&mut self, ui: &mut egui::Ui) {
         let p = theme::ui::palette();
-        let namespaces: BTreeSet<String> =
-            self.markers.keys().map(|(ns, _)| ns.clone()).collect();
+        let namespaces: BTreeSet<String> = self.markers.keys().map(|(ns, _)| ns.clone()).collect();
         let mut changed = false;
         for ns in &namespaces {
             let mut visible = !self.ns_hidden.contains(ns);
-            let label = if ns.is_empty() { "(default)" } else { ns.as_str() };
+            let label = if ns.is_empty() {
+                "(default)"
+            } else {
+                ns.as_str()
+            };
             if ui.checkbox(&mut visible, label).changed() {
                 if visible {
                     self.ns_hidden.remove(ns);
@@ -282,7 +285,8 @@ impl MarkerRenderer {
             }
             let Some(frame_iso) = tf.resolve_at(&entry.frame_id, entry.stamp) else {
                 self.skipped_tf += 1;
-                self.unresolved_frame.get_or_insert_with(|| entry.frame_id.clone());
+                self.unresolved_frame
+                    .get_or_insert_with(|| entry.frame_id.clone());
                 continue;
             };
             let full = (frame_iso * entry.pose).cast::<f32>();
@@ -358,8 +362,9 @@ fn bake_arrow(entry: &MarkerEntry, full: &Isometry3<f32>, color: [f32; 4], mesh:
         if len < f32::EPSILON {
             return;
         }
-        let rotation = UnitQuaternion::rotation_between(&Vector3::x(), &dir)
-            .unwrap_or_else(|| UnitQuaternion::from_axis_angle(&Vector3::z_axis(), std::f32::consts::PI));
+        let rotation = UnitQuaternion::rotation_between(&Vector3::x(), &dir).unwrap_or_else(|| {
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), std::f32::consts::PI)
+        });
         let iso = Isometry3::from_parts(Translation3::from(start.coords), rotation);
         push_arrow_mesh(mesh, &iso, len / ARROW_TOTAL_OVER_SHAFT, color);
     } else {
@@ -472,12 +477,42 @@ fn push_cube(mesh: &mut Vec<Vertex>, iso: &Isometry3<f32>, scale: [f32; 3], colo
     let h = [scale[0] * 0.5, scale[1] * 0.5, scale[2] * 0.5];
     let corner = |sx: f32, sy: f32, sz: f32| iso * Point3::new(sx * h[0], sy * h[1], sz * h[2]);
     let faces = [
-        [(1.0, -1.0, -1.0), (1.0, 1.0, -1.0), (1.0, 1.0, 1.0), (1.0, -1.0, 1.0)],
-        [(-1.0, -1.0, 1.0), (-1.0, 1.0, 1.0), (-1.0, 1.0, -1.0), (-1.0, -1.0, -1.0)],
-        [(-1.0, 1.0, -1.0), (-1.0, 1.0, 1.0), (1.0, 1.0, 1.0), (1.0, 1.0, -1.0)],
-        [(1.0, -1.0, -1.0), (1.0, -1.0, 1.0), (-1.0, -1.0, 1.0), (-1.0, -1.0, -1.0)],
-        [(-1.0, -1.0, 1.0), (1.0, -1.0, 1.0), (1.0, 1.0, 1.0), (-1.0, 1.0, 1.0)],
-        [(-1.0, 1.0, -1.0), (1.0, 1.0, -1.0), (1.0, -1.0, -1.0), (-1.0, -1.0, -1.0)],
+        [
+            (1.0, -1.0, -1.0),
+            (1.0, 1.0, -1.0),
+            (1.0, 1.0, 1.0),
+            (1.0, -1.0, 1.0),
+        ],
+        [
+            (-1.0, -1.0, 1.0),
+            (-1.0, 1.0, 1.0),
+            (-1.0, 1.0, -1.0),
+            (-1.0, -1.0, -1.0),
+        ],
+        [
+            (-1.0, 1.0, -1.0),
+            (-1.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+            (1.0, 1.0, -1.0),
+        ],
+        [
+            (1.0, -1.0, -1.0),
+            (1.0, -1.0, 1.0),
+            (-1.0, -1.0, 1.0),
+            (-1.0, -1.0, -1.0),
+        ],
+        [
+            (-1.0, -1.0, 1.0),
+            (1.0, -1.0, 1.0),
+            (1.0, 1.0, 1.0),
+            (-1.0, 1.0, 1.0),
+        ],
+        [
+            (-1.0, 1.0, -1.0),
+            (1.0, 1.0, -1.0),
+            (1.0, -1.0, -1.0),
+            (-1.0, -1.0, -1.0),
+        ],
     ];
     for f in faces {
         let p: Vec<Point3<f32>> = f.iter().map(|(x, y, z)| corner(*x, *y, *z)).collect();
@@ -688,12 +723,15 @@ mod tests {
 
     fn tf_identity() -> TfBuffer {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![TfTransform {
+        buffer.insert(&tf_update(
+            vec![TfTransform {
                 parent: "map".to_owned(),
                 child: "base".to_owned(),
                 stamp: 0,
                 transform: Isometry3::identity(),
-            }], true));
+            }],
+            true,
+        ));
         buffer
     }
 
@@ -823,7 +861,10 @@ mod tests {
         assert_eq!(r.markers.len(), 1);
         let array = Value::Struct(vec![(
             "markers".to_owned(),
-            Value::Array(vec![marker("b", 0, 1, 0, vec![]), marker("b", 1, 1, 0, vec![])]),
+            Value::Array(vec![
+                marker("b", 0, 1, 0, vec![]),
+                marker("b", 1, 1, 0, vec![]),
+            ]),
         )]);
         r.on_message(&array);
         assert_eq!(r.markers.len(), 3);
@@ -870,10 +911,16 @@ mod tests {
         let mut r = MarkerRenderer::default();
         let buffer = tf_identity();
         r.on_message(&marker("s", 0, 2, 0, vec![]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), SPHERE_STACKS * SPHERE_SLICES * 6);
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            SPHERE_STACKS * SPHERE_SLICES * 6
+        );
         let mut r = MarkerRenderer::default();
         r.on_message(&marker("c", 0, 3, 0, vec![]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), CYLINDER_SEGMENTS * 12);
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            CYLINDER_SEGMENTS * 12
+        );
     }
 
     #[test]
@@ -886,7 +933,10 @@ mod tests {
             f32v(1.0, 1.0, 0.0),
         ]);
         r.on_message(&marker("l", 0, 4, 0, vec![("points", points)]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), 2 * prism_vertex_count());
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            2 * prism_vertex_count()
+        );
     }
 
     #[test]
@@ -900,7 +950,10 @@ mod tests {
             f32v(3.0, 0.0, 0.0),
         ]);
         r.on_message(&marker("l", 0, 5, 0, vec![("points", points)]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), 2 * prism_vertex_count());
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            2 * prism_vertex_count()
+        );
     }
 
     #[test]
@@ -966,18 +1019,25 @@ mod tests {
         let mut r = MarkerRenderer::default();
         let buffer = tf_identity();
         r.on_message(&marker("a", 0, 0, 0, vec![]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), arrow_mesh_vertex_count());
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            arrow_mesh_vertex_count()
+        );
         let mut r = MarkerRenderer::default();
         let points = Value::Array(vec![f32v(0.0, 0.0, 0.0), f32v(2.0, 0.0, 0.0)]);
         r.on_message(&marker("a", 0, 0, 0, vec![("points", points)]));
-        assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), arrow_mesh_vertex_count());
+        assert_eq!(
+            mesh_len(&r.scene(&ctx(&buffer)).unwrap()),
+            arrow_mesh_vertex_count()
+        );
     }
 
     #[test]
     fn text_marker_goes_to_labels_baked_in_fixed_frame() {
         let mut r = MarkerRenderer::default();
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![TfTransform {
+        buffer.insert(&tf_update(
+            vec![TfTransform {
                 parent: "map".to_owned(),
                 child: "base".to_owned(),
                 stamp: 0,
@@ -985,7 +1045,9 @@ mod tests {
                     Translation3::new(5.0, 0.0, 0.0),
                     UnitQuaternion::identity(),
                 ),
-            }], true));
+            }],
+            true,
+        ));
         r.on_message(&marker(
             "t",
             0,
@@ -1014,7 +1076,13 @@ mod tests {
     fn transparent_marker_is_skipped() {
         let mut r = MarkerRenderer::default();
         let buffer = tf_identity();
-        r.on_message(&marker("a", 0, 1, 0, vec![("color", color(1.0, 0.0, 0.0, 0.0))]));
+        r.on_message(&marker(
+            "a",
+            0,
+            1,
+            0,
+            vec![("color", color(1.0, 0.0, 0.0, 0.0))],
+        ));
         assert_eq!(mesh_len(&r.scene(&ctx(&buffer)).unwrap()), 0);
     }
 
@@ -1047,7 +1115,10 @@ mod tests {
         let mut r = MarkerRenderer::default();
         let buffer = tf_identity();
         assert_eq!(r.scene(&ctx(&buffer)).unwrap_err(), RenderStatus::NoData);
-        r.on_message(&Value::Struct(vec![("ns".to_owned(), Value::String("x".to_owned()))]));
+        r.on_message(&Value::Struct(vec![(
+            "ns".to_owned(),
+            Value::String("x".to_owned()),
+        )]));
         assert!(matches!(
             r.scene(&ctx(&buffer)),
             Err(RenderStatus::InvalidMessage(_))
@@ -1060,7 +1131,13 @@ mod tests {
         let buffer = tf_identity();
         let points = Value::Array(vec![f32v(0.0, 0.0, 0.0), f32v(1.0, 0.0, 0.0)]);
         let colors = Value::Array(vec![color(0.0, 1.0, 0.0, 1.0), color(0.0, 0.0, 1.0, 1.0)]);
-        r.on_message(&marker("l", 0, 4, 0, vec![("points", points), ("colors", colors)]));
+        r.on_message(&marker(
+            "l",
+            0,
+            4,
+            0,
+            vec![("points", points), ("colors", colors)],
+        ));
         let batches = r.scene(&ctx(&buffer)).unwrap();
         let BatchData::Mesh(verts) = &batches[0].data else {
             panic!("expected mesh");

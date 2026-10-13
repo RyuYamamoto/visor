@@ -3327,10 +3327,7 @@ mod tests {
             ..topic_config
         };
         let message = missing_display_type(&labelled);
-        assert!(
-            message.contains("as `AltDisplay`"),
-            "message={message}"
-        );
+        assert!(message.contains("as `AltDisplay`"), "message={message}");
         assert!(message.contains("plugin `sample`"), "message={message}");
     }
 

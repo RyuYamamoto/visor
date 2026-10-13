@@ -1115,7 +1115,13 @@ mod tests {
         insert_static(
             &mut buffer,
             vec![
-                tf("camera_tof_link", "camera_tof", 0, (0.0, 0.0, 0.0), rot_z(0.0)),
+                tf(
+                    "camera_tof_link",
+                    "camera_tof",
+                    0,
+                    (0.0, 0.0, 0.0),
+                    rot_z(0.0),
+                ),
                 tf("map", "odom", 0, (0.0, 0.0, 0.0), rot_z(0.0)),
                 tf("odom", "base_link", 0, (0.0, 0.0, 0.0), rot_z(0.0)),
                 tf("base_link", "lidar_link", 0, (0.0, 0.0, 0.0), rot_z(0.0)),

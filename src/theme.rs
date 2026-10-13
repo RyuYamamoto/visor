@@ -429,7 +429,8 @@ pub fn machine_value(text: impl Into<String>) -> egui::RichText {
 pub fn status_led(ui: &mut egui::Ui, color: Color32) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
     let center = rect.center();
-    ui.painter().circle_filled(center, 5.5, color.gamma_multiply(0.25));
+    ui.painter()
+        .circle_filled(center, 5.5, color.gamma_multiply(0.25));
     ui.painter().circle_filled(center, 3.0, color);
 }
 

@@ -112,7 +112,11 @@ impl OrbitCamera {
 
     /// View-projection (wgpu NDC depth 0..1); `follow` adds to both eye and target = translation-only follow.
     pub fn view_proj(&self, aspect: f32, follow: Vector3<f32>) -> Matrix4<f32> {
-        let view = Isometry3::look_at_rh(&(self.eye() + follow), &(self.target + follow), &Vector3::z());
+        let view = Isometry3::look_at_rh(
+            &(self.eye() + follow),
+            &(self.target + follow),
+            &Vector3::z(),
+        );
         let proj = Perspective3::new(aspect, FOVY, NEAR, FAR);
         OPENGL_TO_WGPU * proj.to_homogeneous() * view.to_homogeneous()
     }
@@ -202,12 +206,23 @@ impl TopDownCamera {
 
     /// View-projection (orthographic, wgpu NDC depth 0..1); `follow` translates the whole camera.
     pub fn view_proj(&self, aspect: f32, follow: Vector3<f32>) -> Matrix4<f32> {
-        let target = Point3::new(self.center[0] + follow.x, self.center[1] + follow.y, follow.z);
+        let target = Point3::new(
+            self.center[0] + follow.x,
+            self.center[1] + follow.y,
+            follow.z,
+        );
         let eye = Point3::new(target.x, target.y, target.z + TOPDOWN_ALTITUDE);
         let (_, up) = self.basis();
         let view = Isometry3::look_at_rh(&eye, &target, &up);
         let half_w = self.half_height * aspect;
-        let proj = Orthographic3::new(-half_w, half_w, -self.half_height, self.half_height, NEAR, FAR);
+        let proj = Orthographic3::new(
+            -half_w,
+            half_w,
+            -self.half_height,
+            self.half_height,
+            NEAR,
+            FAR,
+        );
         OPENGL_TO_WGPU * proj.to_homogeneous() * view.to_homogeneous()
     }
 }
@@ -358,10 +373,20 @@ mod tests {
         assert!(((camera.eye() - camera.target).norm() - camera.distance).abs() < 1e-5);
         camera.rotate(0.0, 10_000.0);
         assert!((camera.pitch - PITCH_LIMIT).abs() < 1e-6);
-        assert!(camera.view_proj(1.0, Vector3::zeros()).iter().all(|v| v.is_finite()));
+        assert!(
+            camera
+                .view_proj(1.0, Vector3::zeros())
+                .iter()
+                .all(|v| v.is_finite())
+        );
         camera.rotate(0.0, -100_000.0);
         assert!((camera.pitch + PITCH_LIMIT).abs() < 1e-6);
-        assert!(camera.view_proj(1.0, Vector3::zeros()).iter().all(|v| v.is_finite()));
+        assert!(
+            camera
+                .view_proj(1.0, Vector3::zeros())
+                .iter()
+                .all(|v| v.is_finite())
+        );
     }
 
     #[test]
@@ -387,7 +412,10 @@ mod tests {
         camera.pan(0.0, height / 2.0, height);
         let moved = (camera.target - before).norm();
         let expected = camera.distance * (FOVY * 0.5).tan();
-        assert!((moved - expected).abs() < 1e-4, "moved = {moved}, expected = {expected}");
+        assert!(
+            (moved - expected).abs() < 1e-4,
+            "moved = {moved}, expected = {expected}"
+        );
     }
 
     #[test]
@@ -416,7 +444,10 @@ mod tests {
         let (_, _, depth_near) = project(&camera, near_point);
         let (_, _, depth_far) = project(&camera, far_point);
         assert!(depth_near > 0.0 && depth_far < 1.0);
-        assert!(depth_near < depth_far, "near = {depth_near}, far = {depth_far}");
+        assert!(
+            depth_near < depth_far,
+            "near = {depth_near}, far = {depth_far}"
+        );
     }
 
     #[test]
@@ -458,7 +489,10 @@ mod tests {
         let (_, _, depth_high) = project_with(vp, Point3::new(0.0, 0.0, 2.0));
         let (_, _, depth_low) = project_with(vp, Point3::new(0.0, 0.0, -2.0));
         assert!(depth_high > 0.0 && depth_low < 1.0);
-        assert!(depth_high < depth_low, "high z should be nearer: {depth_high} vs {depth_low}");
+        assert!(
+            depth_high < depth_low,
+            "high z should be nearer: {depth_high} vs {depth_low}"
+        );
     }
 
     #[test]
@@ -466,7 +500,11 @@ mod tests {
         let mut camera = TopDownCamera::default();
         let height = 600.0;
         camera.pan(0.0, height / 2.0, height);
-        assert!((camera.center[1] - camera.half_height).abs() < 1e-4, "center = {:?}", camera.center);
+        assert!(
+            (camera.center[1] - camera.half_height).abs() < 1e-4,
+            "center = {:?}",
+            camera.center
+        );
         assert!(camera.center[0].abs() < 1e-6);
     }
 
@@ -515,13 +553,22 @@ mod tests {
         let before = camera.eye;
         camera.dolly(100.0);
         let moved = camera.eye - before;
-        assert!((moved.normalize() - forward).norm() < 1e-5, "dolly not along forward");
+        assert!(
+            (moved.normalize() - forward).norm() < 1e-5,
+            "dolly not along forward"
+        );
         let (right, _) = camera.basis();
         let before = camera.eye;
         camera.pan(100.0, 0.0, 600.0);
         let strafe = camera.eye - before;
-        assert!(strafe.dot(&forward).abs() < 1e-5, "strafe should not move along forward");
-        assert!(strafe.dot(&right) > 0.0, "positive dx should strafe toward +right (RViz push)");
+        assert!(
+            strafe.dot(&forward).abs() < 1e-5,
+            "strafe should not move along forward"
+        );
+        assert!(
+            strafe.dot(&right) > 0.0,
+            "positive dx should strafe toward +right (RViz push)"
+        );
     }
 
     #[test]
@@ -543,9 +590,18 @@ mod tests {
         cameras.topdown.half_height = 33.0;
         cameras.view_type = ViewType::TopDownOrtho;
         cameras.reset_current();
-        assert_eq!(cameras.topdown.half_height, TopDownCamera::default().half_height);
-        assert_eq!(cameras.orbit.distance, 42.0, "reset must not touch other views");
+        assert_eq!(
+            cameras.topdown.half_height,
+            TopDownCamera::default().half_height
+        );
+        assert_eq!(
+            cameras.orbit.distance, 42.0,
+            "reset must not touch other views"
+        );
         cameras.view_type = ViewType::Orbit;
-        assert_eq!(cameras.orbit.distance, 42.0, "switching back preserves orbit state");
+        assert_eq!(
+            cameras.orbit.distance, 42.0,
+            "switching back preserves orbit state"
+        );
     }
 }

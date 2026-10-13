@@ -1848,9 +1848,16 @@ impl CallbackTrait for ViewportCallback {
             (self.viewport_px[0].round() as u32).max(1),
             (self.viewport_px[1].round() as u32).max(1),
         ];
-        if resources.offscreen.as_ref().is_none_or(|off| off.size != size) {
+        if resources
+            .offscreen
+            .as_ref()
+            .is_none_or(|off| off.size != size)
+        {
             resources.offscreen = Some(Offscreen::new(device, resources, size));
-            let off = resources.offscreen.as_ref().expect("offscreen just created");
+            let off = resources
+                .offscreen
+                .as_ref()
+                .expect("offscreen just created");
             let texel = off.bloom_texel();
             let mut params = [0u8; POST_UNIFORM_SIZE as usize];
             params[0..4].copy_from_slice(&texel[0].to_le_bytes());
@@ -1906,9 +1913,24 @@ impl CallbackTrait for ViewportCallback {
         }
         // Bright-pass then a separable blur, ping-ponging between the two half-res glow textures.
         for (label, pipeline, source, target) in [
-            ("viewport bright", &resources.bright_pipeline, &off.bright_src, &off.bloom[0]),
-            ("viewport blur h", &resources.blur_h_pipeline, &off.blur_h_src, &off.bloom[1]),
-            ("viewport blur v", &resources.blur_v_pipeline, &off.blur_v_src, &off.bloom[0]),
+            (
+                "viewport bright",
+                &resources.bright_pipeline,
+                &off.bright_src,
+                &off.bloom[0],
+            ),
+            (
+                "viewport blur h",
+                &resources.blur_h_pipeline,
+                &off.blur_h_src,
+                &off.bloom[1],
+            ),
+            (
+                "viewport blur v",
+                &resources.blur_v_pipeline,
+                &off.blur_v_src,
+                &off.bloom[0],
+            ),
         ] {
             let mut pass = egui_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some(label),
@@ -2557,10 +2579,13 @@ mod tests {
     #[test]
     fn tf_scene_skips_fixed_frame_and_disconnected_frames() {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 static_tf("map", "base_link", (1.0, 0.0, 0.0)),
                 static_tf("island", "leaf", (5.0, 0.0, 0.0)),
-            ], true));
+            ],
+            true,
+        ));
         let scene = tf_scene(&buffer, "map", &HashSet::new());
         assert_eq!(scene.axes.len(), 1);
         assert_eq!(scene.axes[0].0, "base_link");
@@ -2573,10 +2598,13 @@ mod tests {
     #[test]
     fn tf_scene_links_connect_parent_to_child_including_fixed_origin() {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 static_tf("map", "odom", (1.0, 0.0, 0.0)),
                 static_tf("odom", "base_link", (0.0, 1.0, 0.0)),
-            ], true));
+            ],
+            true,
+        ));
         let scene = tf_scene(&buffer, "map", &HashSet::new());
         assert_eq!(scene.axes.len(), 2);
         let mut links = scene.links.clone();
@@ -2591,10 +2619,13 @@ mod tests {
     #[test]
     fn tf_axes_are_prisms_and_links_are_separate_thin_segments() {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 static_tf("map", "odom", (1.0, 0.0, 0.0)),
                 static_tf("odom", "base_link", (0.0, 1.0, 0.0)),
-            ], true));
+            ],
+            true,
+        ));
         let per_line = crate::render::prism_vertex_count();
         let scene = tf_scene(&buffer, "map", &HashSet::new());
         // Only the 2 triads (3 axes each) are prisms; links never inflate the axis mesh.
@@ -2619,10 +2650,13 @@ mod tests {
     #[test]
     fn tf_scene_hidden_frames_drop_axes_and_child_links_but_keep_parent_endpoints() {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![
+        buffer.insert(&tf_update(
+            vec![
                 static_tf("map", "odom", (1.0, 0.0, 0.0)),
                 static_tf("odom", "base_link", (0.0, 1.0, 0.0)),
-            ], true));
+            ],
+            true,
+        ));
         let hidden = HashSet::from(["odom".to_owned()]);
         let scene = tf_scene(&buffer, "map", &hidden);
         // odom's axis disappears; base_link remains.

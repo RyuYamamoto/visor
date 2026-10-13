@@ -493,7 +493,8 @@ mod tests {
 
     fn tf_with(x: f64) -> TfBuffer {
         let mut buffer = TfBuffer::new();
-        buffer.insert(&tf_update(vec![TfTransform {
+        buffer.insert(&tf_update(
+            vec![TfTransform {
                 parent: "map".to_owned(),
                 child: "odom".to_owned(),
                 stamp: 1_000,
@@ -501,7 +502,9 @@ mod tests {
                     Translation3::new(x, 0.0, 0.0),
                     UnitQuaternion::identity(),
                 ),
-            }], false));
+            }],
+            false,
+        ));
         buffer
     }
 
